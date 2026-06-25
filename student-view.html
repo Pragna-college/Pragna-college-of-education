@@ -240,6 +240,18 @@
     document.getElementById('student-detail').style.display = 'block';
   }
 
+  function showDetailError(message) {
+    showStudentDetailPage();
+    document.getElementById('detail-name').textContent = 'Student details unavailable';
+    document.getElementById('detail-roll').textContent = message;
+    document.getElementById('detail-batch').textContent = '';
+    document.getElementById('detail-phone').textContent = '';
+    document.getElementById('payment-history').innerHTML =
+      '<tr><td colspan="6" class="empty-msg">Unable to load payment history</td></tr>';
+    document.getElementById('documents-list').innerHTML =
+      '<div class="error-msg">Unable to load submitted documents.</div>';
+  }
+
   async function loadCourseFilter() {
     const { data } = await supabase
       .from('students')
@@ -363,15 +375,19 @@
 
     if (error || !student) {
       showToast('Student not found.', 'danger');
-      showSearchPage();
+      showDetailError('Please check the student link and try again.');
       return;
     }
 
-    const { data: payments } = await supabase
+    const { data: payments, error: paymentsError } = await supabase
       .from('fee_payments')
       .select('*')
       .eq('student_id', studentId)
       .order('payment_date', { ascending: false });
+
+    if (paymentsError) {
+      showToast('Payment history could not be loaded.', 'danger');
+    }
 
     document.getElementById('detail-name').textContent = student.name;
     document.getElementById('detail-roll').textContent = `Hall Ticket No: ${student.roll_no}`;
@@ -406,7 +422,9 @@
 
     const tbody = document.getElementById('payment-history');
 
-    if (!payments || !payments.length) {
+    if (paymentsError) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-msg">Unable to load payments</td></tr>';
+    } else if (!payments || !payments.length) {
       tbody.innerHTML = '<tr><td colspan="6" class="empty-msg">No payments recorded yet</td></tr>';
     } else {
       tbody.innerHTML = payments.map((p, i) => `
@@ -479,19 +497,31 @@
   });
 
   async function initStudentView() {
-    await loadScholarshipLink();
-
     const params = new URLSearchParams(window.location.search);
     const directId = params.get('id');
 
-    if (directId) {
-      showStudentDetailPage();
-      await loadStudentDetail(directId, false);
-      return;
-    }
+    try {
+      await loadScholarshipLink();
 
-    showSearchPage();
-    await loadSearchFilters();
+      if (directId) {
+        showStudentDetailPage();
+        await loadStudentDetail(directId, false);
+        return;
+      }
+
+      showSearchPage();
+      await loadSearchFilters();
+    } catch (err) {
+      console.error('Student view failed to load:', err);
+
+      if (directId) {
+        showDetailError('Something went wrong while loading this student.');
+        return;
+      }
+
+      showSearchPage();
+      showToast('Search page failed to load. Please refresh.', 'danger');
+    }
   }
 
   initStudentView();

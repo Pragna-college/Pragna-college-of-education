@@ -132,7 +132,7 @@ return matchSearch && matchBatch && matchStatus && matchCourse;
       <tr>
         <td><strong>${s.roll_no}</strong></td>
         <td>
-          <a href="./student-view.html?id=${encodeURIComponent(s.id)}" target="_self">${s.name}</a>
+          <a href="student-view.html?id=${encodeURIComponent(s.id)}">${s.name}</a>
           ${s.notes ? `<br><small class="text-muted">${s.notes}</small>` : ''}
         </td>
         <td>${s.phone || '—'}</td>
