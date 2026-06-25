@@ -6,7 +6,7 @@ let batches = [];
 let deleteStudentId = null;
 
 function openStudentDetails(studentId) {
-  window.location.href = `/student-view.html?id=${encodeURIComponent(studentId)}`;
+  window.location.href = `/student-view?id=${encodeURIComponent(studentId)}`;
 }
 
 async function initStudents() {
