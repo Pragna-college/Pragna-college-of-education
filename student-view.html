@@ -297,7 +297,7 @@
     // Fill student info
     document.getElementById('detail-name').textContent  = student.name;
     document.getElementById('detail-roll').textContent  = `Roll No: ${student.roll_no}`;
-    document.getElementById('detail-batch').textContent = `Batch: ${student.batches?.label || '—'}`;
+    document.getElementById('detail-batch').textContent = `Batch: ${student.batches?.label || '—'} | Course: ${student.course || '—'}`;
     document.getElementById('detail-phone').innerHTML   = student.phone
       ? `📞 ${student.phone}`
       : '';
