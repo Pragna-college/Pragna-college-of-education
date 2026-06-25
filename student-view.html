@@ -28,22 +28,32 @@
   <div id="search-section">
     <div style="text-align:center;padding:40px 0 24px;">
       <div style="font-size:3rem;">🎓</div>
-      <h1 style="color:var(--primary);margin-bottom:8px;">Fee & Certificate Lookup</h1>
-      <p class="text-muted">Enter your name or roll number to view your fee details</p>
+      <h1 style="color:var(--primary);margin-bottom:8px;">Student Fee Details</h1>
+<p class="text-muted">Search by name or hall ticket number, or filter by course and batch</p>
     </div>
 
     <div class="card">
-      <div class="search-bar" style="margin-bottom:0;">
-        <input
-          type="text"
-          id="search-input"
-          class="search-input"
-          placeholder="Search by name or roll number..."
-          style="flex:1;"
-        />
-        <button class="btn btn-primary" id="search-btn">Search</button>
-      </div>
-    </div>
+      <div class="card">
+  <div class="search-bar" style="margin-bottom:0;">
+    <input
+      type="text"
+      id="search-input"
+      class="search-input"
+      placeholder="Search by name or hall ticket number..."
+      style="flex:1;"
+    />
+
+    <select id="course-filter" class="form-control" style="width:auto;">
+      <option value="">All Courses</option>
+    </select>
+
+    <select id="batch-filter" class="form-control" style="width:auto;">
+      <option value="">All Batches</option>
+    </select>
+
+    <button class="btn btn-primary" id="search-btn">Search</button>
+  </div>
+</div>
 
     <!-- SCHOLARSHIP LINK -->
     <div id="scholarship-wrap" style="display:none;text-align:center;margin-top:16px;">
@@ -60,7 +70,7 @@
   <div id="student-detail" style="display:none;">
 
     <div style="margin-bottom:16px;">
-      <button class="btn btn-outline" id="back-btn">← Back to Search</button>
+      <button class="btn btn-outline" id="back-btn">← Back</button>
     </div>
 
     <!-- STUDENT INFO CARD -->
@@ -213,54 +223,72 @@
 
   // Search students
   async function searchStudents() {
-    const query = document.getElementById('search-input').value.trim();
-    if (!query) {
-      showToast('Please enter a name or roll number.', 'danger');
-      return;
-    }
+  const query = document.getElementById('search-input').value.trim();
+  const course = document.getElementById('course-filter').value;
+  const batchId = document.getElementById('batch-filter').value;
 
-    const resultsDiv = document.getElementById('search-results');
-    resultsDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p>Searching...</p></div>';
+  const resultsDiv = document.getElementById('search-results');
 
-    const { data, error } = await supabase
-      .from('students')
-      .select('*, batches(label)')
-      .or(`name.ilike.%${query}%,roll_no.ilike.%${query}%`)
-      .limit(10);
-
-    if (error || !data) {
-      resultsDiv.innerHTML = '<div class="error-msg">Search failed. Please try again.</div>';
-      return;
-    }
-
-    if (!data.length) {
-      resultsDiv.innerHTML = '<div class="card" style="text-align:center;padding:32px;color:var(--text-muted);">No students found. Please check your name or roll number.</div>';
-      return;
-    }
-
-    if (data.length === 1) {
-      loadStudentDetail(data[0].id);
-      return;
-    }
-
-    resultsDiv.innerHTML = `
-      <div class="card">
-        <div class="card-title" style="margin-bottom:12px;">Select your record</div>
-        ${data.map((s) => `
-          <div
-            onclick="loadStudentDetail('${s.id}')"
-            style="padding:12px;border:1.5px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;transition:border-color 0.2s;"
-            onmouseover="this.style.borderColor='var(--primary)'"
-            onmouseout="this.style.borderColor='var(--border)'"
-          >
-            <strong>${s.name}</strong>
-            <span class="text-muted" style="margin-left:8px;">${s.roll_no}</span>
-            <span class="badge badge-info" style="margin-left:8px;">${s.batches?.label || ''}</span>
-          </div>
-        `).join('')}
-      </div>
-    `;
+  if (!query && !course && !batchId) {
+    showToast('Please search or select course/batch.', 'danger');
+    return;
   }
+
+  resultsDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p>Searching...</p></div>';
+
+  let request = supabase
+    .from('students')
+    .select('*, batches(label)')
+    .limit(50);
+
+  if (query) {
+    request = request.or(`name.ilike.%${query}%,roll_no.ilike.%${query}%`);
+  }
+
+  if (course) {
+    request = request.eq('course', course);
+  }
+
+  if (batchId) {
+    request = request.eq('batch_id', batchId);
+  }
+
+  const { data, error } = await request;
+
+  if (error || !data) {
+    resultsDiv.innerHTML = '<div class="error-msg">Search failed. Please try again.</div>';
+    return;
+  }
+
+  if (!data.length) {
+    resultsDiv.innerHTML = '<div class="card" style="text-align:center;padding:32px;color:var(--text-muted);">No students found.</div>';
+    return;
+  }
+
+  if (data.length === 1) {
+    loadStudentDetail(data[0].id);
+    return;
+  }
+
+  resultsDiv.innerHTML = `
+    <div class="card">
+      <div class="card-title" style="margin-bottom:12px;">Select student record</div>
+      ${data.map((s) => `
+        <div
+          onclick="loadStudentDetail('${s.id}')"
+          style="padding:12px;border:1.5px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;transition:border-color 0.2s;"
+          onmouseover="this.style.borderColor='var(--primary)'"
+          onmouseout="this.style.borderColor='var(--border)'"
+        >
+          <strong>${s.name}</strong>
+          <span class="text-muted" style="margin-left:8px;">${s.roll_no}</span>
+          <span class="badge badge-info" style="margin-left:8px;">${s.batches?.label || ''}</span>
+          ${s.course ? `<span class="badge badge-muted" style="margin-left:8px;">${s.course}</span>` : ''}
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
 
   // Load full student detail
   async function loadStudentDetail(studentId) {
@@ -386,23 +414,64 @@ docsDiv.innerHTML = documents.map((doc) => {
     url.searchParams.delete('id');
     window.history.pushState({}, '', url);
   }
+async function loadSearchFilters() {
+  await loadCourseFilter();
+  await loadBatchFilter();
+}
 
+async function loadCourseFilter() {
+  const { data } = await supabase
+    .from('students')
+    .select('course');
+
+  const select = document.getElementById('course-filter');
+  if (!select || !data) return;
+
+  const courses = [...new Set(data.map(s => s.course).filter(Boolean))];
+
+  courses.forEach(course => {
+    const opt = document.createElement('option');
+    opt.value = course;
+    opt.textContent = course;
+    select.appendChild(opt);
+  });
+}
+
+async function loadBatchFilter() {
+  const { data } = await supabase
+    .from('batches')
+    .select('*')
+    .order('year_start');
+
+  const select = document.getElementById('batch-filter');
+  if (!select || !data) return;
+
+  data.forEach(batch => {
+    const opt = document.createElement('option');
+    opt.value = batch.id;
+    opt.textContent = batch.label;
+    select.appendChild(opt);
+  });
+}
   // Setup
   document.getElementById('search-btn').addEventListener('click', searchStudents);
   document.getElementById('search-input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') searchStudents();
   });
-  document.getElementById('back-btn').addEventListener('click', goBack);
+  document.getElementById('back-btn').addEventListener('click', () => {   if (document.referrer) {     window.history.back();   } else {     goBack();   } });
 
-  // Check if coming with ?id= directly
-  const params = new URLSearchParams(window.location.search);
-  const directId = params.get('id');
-  if (directId) {
-    loadStudentDetail(directId);
-  }
 
-  // Load scholarship link
-  loadScholarshipLink();
+  // Load filters and scholarship link
+loadSearchFilters();
+loadScholarshipLink();
+
+// Check if coming with ?id= directly
+const params = new URLSearchParams(window.location.search);
+const directId = params.get('id');
+
+if (directId) {
+  loadStudentDetail(directId);
+}
 </script>
 
 </body>
