@@ -166,7 +166,6 @@ async function loadStudentDetail(studentId, updateUrl = true) {
 
   if (updateUrl) {
     const url = new URL(window.location.href);
-    url.pathname = url.pathname.replace(/student-view$/, 'student-view.html');
     url.searchParams.set('id', studentId);
     window.history.pushState({}, '', url);
   }
@@ -274,7 +273,7 @@ function goBack() {
   searchResults.innerHTML = '';
 
   const url = new URL(window.location.href);
-  url.pathname = url.pathname.replace(/student-view$/, 'student-view.html');
+  
   url.searchParams.delete('id');
   window.history.pushState({}, '', url);
 }
@@ -289,11 +288,6 @@ document.getElementById('back-btn').addEventListener('click', goBack);
 
 async function initStudentView() {
   const url = new URL(window.location.href);
-
-  if (url.pathname.endsWith('/student-view')) {
-    url.pathname = `${url.pathname}.html`;
-    window.history.replaceState({}, '', url);
-  }
 
   loadScholarshipLink().catch((err) => {
     console.warn('Scholarship link failed to load:', err);
