@@ -1,5 +1,5 @@
 // Service Worker for Pragna College PWA
-const CACHE_NAME = 'pragna-v12';
+const CACHE_NAME = 'pragna-v13';
 
 const STATIC_ASSETS = [
   '/',
@@ -49,12 +49,6 @@ self.addEventListener('activate', (event) => {
 // Fetch — network first, fallback to cache
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-
-  if (url.pathname.endsWith('/student-view') && url.searchParams.has('id')) {
-    url.pathname = `${url.pathname}.html`;
-    event.respondWith(Response.redirect(url.toString(), 302));
-    return;
-  }
 
   // Skip non-GET and Supabase API requests
   if (
