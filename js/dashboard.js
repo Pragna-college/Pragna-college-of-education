@@ -299,7 +299,7 @@ function renderHighDueStudents(students) {
     return `
       <tr>
         <td>${s.roll_no}</td>
-        <td><a href="student-view.html?id=${s.id}">${s.name}</a></td>
+        <td><a href="student-view.html?id=${encodeURIComponent(s.id)}">${s.name}</a></td>
         <td>${s.batch_id || '—'}</td>
         <td>${formatCurrency(s.net_payable)}</td>
         <td>${formatCurrency(s.paid)}</td>
