@@ -169,10 +169,11 @@
     </div>
 
     <!-- CERTIFICATES -->
-    <div class="card">
-      <div class="card-title">Certificates</div>
-      <div id="certificates-list"></div>
-    </div>
+    <!-- SUBMITTED DOCUMENTS -->
+<div class="card">
+  <div class="card-title">Submitted Documents</div>
+  <div id="documents-list"></div>
+</div>
 
     <!-- SCHOLARSHIP LINK -->
     <div id="scholarship-wrap-detail" style="display:none;text-align:center;margin:20px 0;">
@@ -291,12 +292,7 @@
       .eq('student_id', studentId)
       .order('payment_date', { ascending: false });
 
-    // Load certificates
-    const { data: certificates } = await supabase
-      .from('certificates')
-      .select('*')
-      .eq('student_id', studentId)
-      .order('created_at', { ascending: false });
+    
 
     // Fill student info
     document.getElementById('detail-name').textContent  = student.name;
@@ -351,26 +347,35 @@
     }
 
     // Certificates
-    const certDiv = document.getElementById('certificates-list');
-    if (!certificates || !certificates.length) {
-      certDiv.innerHTML = '<div class="empty-msg" style="padding:20px;">No certificate requests found</div>';
-    } else {
-      certDiv.innerHTML = certificates.map((c) => `
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
-          <div>
-            <span class="badge badge-muted">${c.type}</span>
-            <small class="text-muted" style="margin-left:8px;">Requested: ${formatDate(c.requested_date)}</small>
-          </div>
-          <div>
-            ${c.issued_date
-              ? `<span class="badge badge-success">Issued on ${formatDate(c.issued_date)}</span>`
-              : `<span class="badge badge-danger">Pending</span>`
-            }
-          </div>
-        </div>
-      `).join('');
-    }
-  }
+    // Submitted Documents
+const docsDiv = document.getElementById('documents-list');
+
+const documents = [
+  { label: 'SSC', value: student.ssc },
+  { label: 'Inter', value: student.inter },
+  { label: 'Degree', value: student.degree },
+  { label: 'Memos', value: student.memos },
+  { label: 'TC', value: student.tc },
+];
+
+docsDiv.innerHTML = documents.map((doc) => {
+  const submitted = String(doc.value || '').toLowerCase() === 'yes';
+
+  return `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);">
+      <div>
+        <strong>${doc.label}</strong>
+      </div>
+      <div>
+        ${
+          submitted
+            ? '<span class="badge badge-success">Submitted</span>'
+            : '<span class="badge badge-danger">Not Submitted</span>'
+        }
+      </div>
+    </div>
+  `;
+}).join('');
 
   // Go back to search
   function goBack() {
