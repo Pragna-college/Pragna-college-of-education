@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Students — Pragna College</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="manifest" href="manifest.json" />
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <a href="index.html" class="navbar-brand">
+    <span>🎓</span> Pragna College
+  </a>
+  <button class="hamburger" id="hamburger">☰</button>
+  <div class="navbar-menu" id="nav-menu">
+    <a href="index.html">Dashboard</a>
+    <a href="students.html" class="active">Students</a>
+    <a href="payments.html">Payments</a>
+    <a href="certificates.html">Certificates</a>
+    <a href="audit.html">Audit Log</a>
+  </div>
+  <div class="navbar-right">
+    <span id="user-email"></span>
+    <button id="logout-btn" class="btn btn-outline" style="color:white;border-color:rgba(255,255,255,0.4);padding:5px 12px;font-size:0.8rem;">Logout</button>
+  </div>
+</nav>
+
+<!-- PAGE -->
+<div class="page">
+
+  <div class="page-header">
+    <h1 class="page-title">Students</h1>
+    <button class="btn btn-primary" id="add-student-btn">+ Add Student</button>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="card" style="padding:14px 20px;">
+    <div class="search-bar">
+      <input type="text" id="search-input" class="search-input" placeholder="Search by name or roll no..." />
+      <select id="batch-filter" class="form-control" style="width:auto;">
+        <option value="">All Batches</option>
+      </select>
+      <select id="status-filter" class="form-control" style="width:auto;">
+        <option value="">All Status</option>
+        <option value="due">Has Due</option>
+        <option value="clear">Fully Paid</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- STUDENTS TABLE -->
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Roll No</th>
+            <th>Name</th>
+            <th>Phone</th>
+            <th>Batch</th>
+            <th>Net Payable</th>
+            <th>Paid</th>
+            <th>Balance</th>
+            <th>Progress</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="students-table">
+          <tr><td colspan="9" class="empty-msg">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ADD / EDIT STUDENT MODAL -->
+<div class="modal-overlay" id="student-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">Add Student</div>
+      <button class="modal-close" id="modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <input type="hidden" id="student-id" />
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Roll Number *</label>
+          <input type="text" id="roll-no" class="form-control" placeholder="PCE-2024-001" />
+        </div>
+        <div class="form-group">
+          <label>Batch *</label>
+          <select id="batch-id" class="form-control">
+            <option value="">Select Batch</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Full Name *</label>
+        <input type="text" id="student-name" class="form-control" placeholder="Student full name" />
+      </div>
+
+      <div class="form-group">
+        <label>Phone</label>
+        <input type="text" id="student-phone" class="form-control" placeholder="10-digit mobile number" />
+      </div>
+
+      <div style="background:#f4f6f9;border-radius:8px;padding:16px;margin-bottom:16px;">
+        <div style="font-weight:600;margin-bottom:12px;color:var(--primary);">Fee Details</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>College Fee (₹)</label>
+            <input type="number" id="college-fee" class="form-control" placeholder="0" min="0" />
+          </div>
+          <div class="form-group">
+            <label>Attendance Fee (₹)</label>
+            <input type="number" id="attendance-fee" class="form-control" placeholder="0" min="0" />
+          </div>
+          <div class="form-group">
+            <label>Development Fee (₹)</label>
+            <input type="number" id="development-fee" class="form-control" placeholder="0" min="0" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Concession (₹)</label>
+            <input type="number" id="concession" class="form-control" placeholder="0" min="0" />
+          </div>
+          <div class="form-group">
+            <label>Scholarship Amount (₹)</label>
+            <input type="number" id="scholarship-amount" class="form-control" placeholder="0" min="0" />
+          </div>
+        </div>
+        <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px;">
+          <div class="flex justify-between">
+            <span class="text-muted">Total Fee:</span>
+            <strong id="calc-total">₹0</strong>
+          </div>
+          <div class="flex justify-between mt-1">
+            <span class="text-muted">Concession:</span>
+            <strong id="calc-concession">₹0</strong>
+          </div>
+          <div class="flex justify-between mt-1">
+            <span style="font-weight:700;color:var(--primary);">Net Payable:</span>
+            <strong id="calc-net" style="color:var(--primary);font-size:1.1rem;">₹0</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea id="student-notes" class="form-control" rows="2" placeholder="Any additional notes..."></textarea>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="cancel-btn">Cancel</button>
+      <button class="btn btn-primary" id="save-student-btn">Save Student</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM MODAL -->
+<div class="modal-overlay" id="delete-modal">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <div class="modal-title">Delete Student</div>
+      <button class="modal-close" id="delete-modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <p>Are you sure you want to delete <strong id="delete-student-name"></strong>?</p>
+      <p class="text-muted mt-1" style="font-size:0.85rem;">This will also delete all their payment records and certificates.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="delete-cancel-btn">Cancel</button>
+      <button class="btn btn-danger" id="confirm-delete-btn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/students.js"></script>
+<script>
+  document.getElementById('hamburger').addEventListener('click', () => {
+    document.getElementById('nav-menu').classList.toggle('open');
+  });
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js');
+  }
+</script>
+
+</body>
+</html>
