@@ -470,6 +470,8 @@ const params = new URLSearchParams(window.location.search);
 const directId = params.get('id');
 
 if (directId) {
+  document.getElementById('search-section').style.display = 'none';
+  document.getElementById('student-detail').style.display = 'block';
   loadStudentDetail(directId);
 }
 </script>
