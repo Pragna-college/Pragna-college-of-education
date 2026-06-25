@@ -9,15 +9,22 @@ const courseFilter = document.getElementById('course-filter');
 const batchFilter = document.getElementById('batch-filter');
 const searchResults = document.getElementById('search-results');
 
+if (!searchSection || !detailSection) {
+  console.error('Required DOM elements not found. Check student-view.html structure.');
+}
+
 function showSearchPage() {
   detailSection.style.display = 'none';
   searchSection.style.display = 'block';
 }
 
-function showStudentDetailPage() {
+
+  function showStudentDetailPage() {
+  console.log('showStudentDetailPage called', searchSection, detailSection);
   searchSection.style.display = 'none';
   detailSection.style.display = 'block';
 }
+
 
 function setText(id, value) {
   const el = document.getElementById(id);
