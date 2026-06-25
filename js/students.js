@@ -487,6 +487,7 @@ function renderExcelPreview() {
             <th>Course</th>
             <th>Total Fee</th>
             <th>Payments</th>
+            <th>Docs</th>
             <th>Status</th>
           </tr>
         </thead>
@@ -501,6 +502,13 @@ function renderExcelPreview() {
                 <td>${r.course || '—'}</td>
                 <td>${formatCurrency(totalFee)}</td>
                 <td>${r.payments.length}</td>
+                <td>
+                  SSC: ${r.ssc || 'No'}<br>
+                  Inter: ${r.inter || 'No'}<br>
+                  Degree: ${r.degree || 'No'}<br>
+                  Memos: ${r.memos || 'No'}<br>
+                  TC: ${r.tc || 'No'}
+                </td>
                 <td>
                   ${
                     r.valid
