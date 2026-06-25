@@ -82,10 +82,15 @@ function loadCourseFilter() {
 }
 // Render students table
 function renderStudents() {
-  const search  = document.getElementById('search-input').value.toLowerCase();
-const batchId = document.getElementById('batch-filter').value;
-const status  = document.getElementById('status-filter').value;
-const course  = document.getElementById('course-filter').value;
+  const searchInput = document.getElementById('search-input');
+const batchFilter = document.getElementById('batch-filter');
+const statusFilter = document.getElementById('status-filter');
+const courseFilter = document.getElementById('course-filter');
+
+const search = searchInput ? searchInput.value.toLowerCase() : '';
+const batchId = batchFilter ? batchFilter.value : '';
+const status = statusFilter ? statusFilter.value : '';
+const course = courseFilter ? courseFilter.value : '';
   // Build paid map
   const paidMap = {};
   allPayments.forEach((p) => {
@@ -324,9 +329,26 @@ function setupEventListeners() {
   });
 
   // Search and filters
-  document.getElementById('search-input').addEventListener('input', debounce(renderStudents));
-  document.getElementById('batch-filter').addEventListener('change', renderStudents);
-  document.getElementById('course-filter').addEventListener('change', renderStudents);
+  const searchInput = document.getElementById('search-input');
+const batchFilter = document.getElementById('batch-filter');
+const statusFilter = document.getElementById('status-filter');
+const courseFilter = document.getElementById('course-filter');
+
+if (searchInput) {
+  searchInput.addEventListener('input', debounce(renderStudents));
+}
+
+if (batchFilter) {
+  batchFilter.addEventListener('change', renderStudents);
+}
+
+if (statusFilter) {
+  statusFilter.addEventListener('change', renderStudents);
+}
+
+if (courseFilter) {
+  courseFilter.addEventListener('change', renderStudents);
+}
 
   // Fee calc preview
   ['college-fee', 'attendance-fee', 'development-fee', 'concession'].forEach((id) => {
