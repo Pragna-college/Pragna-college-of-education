@@ -1,212 +1,404 @@
-// Audit log page logic
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fee Lookup — Pragna College</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="manifest" href="manifest.json" />
+</head>
+<body>
 
-let allLogs = [];
-let displayedLogs = [];
-const PAGE_SIZE = 50;
-let currentPage = 1;
+<!-- NAVBAR -->
+<nav class="navbar">
+  <a href="student-view.html" class="navbar-brand">
+    <span>🎓</span> Pragna College
+  </a>
+  <div class="navbar-right">
+    <a href="login.html" class="btn btn-outline" style="color:white;border-color:rgba(255,255,255,0.4);padding:5px 12px;font-size:0.8rem;">
+      Staff Login
+    </a>
+  </div>
+</nav>
 
-async function initAudit() {
-  await initAuth();
-  await loadAuditLogs();
-  setupEventListeners();
-}
+<!-- PAGE -->
+<div class="page" style="max-width:800px;">
 
-// Load audit logs
-async function loadAuditLogs() {
-  showLoading('audit-table', 'Loading audit logs...');
+  <!-- SEARCH SECTION -->
+  <div id="search-section">
+    <div style="text-align:center;padding:40px 0 24px;">
+      <div style="font-size:3rem;">🎓</div>
+      <h1 style="color:var(--primary);margin-bottom:8px;">Fee & Certificate Lookup</h1>
+      <p class="text-muted">Enter your name or roll number to view your fee details</p>
+    </div>
 
-  const { data, error } = await supabase
-    .from('audit_logs')
-    .select('*')
-    .order('done_at', { ascending: false })
-    .limit(500);
-
-  if (error) {
-    showError('audit-table', 'Failed to load audit logs.');
-    return;
-  }
-
-  allLogs = data || [];
-  currentPage = 1;
-  renderLogs();
-}
-
-// Render logs with filters
-function renderLogs() {
-  const search    = document.getElementById('search-input').value.toLowerCase();
-  const table     = document.getElementById('table-filter').value;
-  const action    = document.getElementById('action-filter').value;
-  const fromDate  = document.getElementById('from-date').value;
-  const toDate    = document.getElementById('to-date').value;
-
-  let filtered = allLogs.filter((log) => {
-    const matchSearch = !search ||
-      log.done_by?.toLowerCase().includes(search) ||
-      log.table_name?.toLowerCase().includes(search);
-    const matchTable  = !table  || log.table_name === table;
-    const matchAction = !action || log.action === action;
-    const logDate     = log.done_at?.split('T')[0];
-    const matchFrom   = !fromDate || logDate >= fromDate;
-    const matchTo     = !toDate   || logDate <= toDate;
-    return matchSearch && matchTable && matchAction && matchFrom && matchTo;
-  });
-
-  displayedLogs = filtered;
-  const paginated = filtered.slice(0, PAGE_SIZE * currentPage);
-
-  const tbody = document.getElementById('audit-table');
-
-  if (!filtered.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty-msg">No audit logs found</td></tr>';
-    document.getElementById('load-more-wrap').style.display = 'none';
-    return;
-  }
-
-  tbody.innerHTML = paginated.map((log) => {
-    const actionBadge = {
-      INSERT: '<span class="badge badge-success">Added</span>',
-      UPDATE: '<span class="badge badge-warning">Edited</span>',
-      DELETE: '<span class="badge badge-danger">Deleted</span>',
-    }[log.action] || `<span class="badge badge-muted">${log.action}</span>`;
-
-    const tableLabel = {
-      students:     '👤 Students',
-      fee_payments: '💰 Payments',
-      certificates: '📄 Certificates',
-    }[log.table_name] || log.table_name;
-
-    const summary = getLogSummary(log);
-
-    return `
-      <tr>
-        <td>
-          <strong>${formatDate(log.done_at?.split('T')[0])}</strong><br>
-          <small class="text-muted">${formatTime(log.done_at)}</small>
-        </td>
-        <td>${actionBadge}</td>
-        <td>${tableLabel}</td>
-        <td><small>${log.done_by || '—'}</small></td>
-        <td>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <small>${summary}</small>
-            <button class="btn btn-outline btn-sm" onclick="openDetail('${log.id}')">
-              View
-            </button>
-          </div>
-        </td>
-      </tr>
-    `;
-  }).join('');
-
-  // Load more button
-  const loadMoreWrap = document.getElementById('load-more-wrap');
-  if (filtered.length > PAGE_SIZE * currentPage) {
-    loadMoreWrap.style.display = 'block';
-  } else {
-    loadMoreWrap.style.display = 'none';
-  }
-}
-
-// Get short summary of what changed
-function getLogSummary(log) {
-  if (log.action === 'INSERT' && log.new_data) {
-    const d = log.new_data;
-    if (log.table_name === 'students')     return `Added student: ${d.name || ''} (${d.roll_no || ''})`;
-    if (log.table_name === 'fee_payments') return `Payment of ₹${d.amount || ''} recorded`;
-    if (log.table_name === 'certificates') return `${d.type || ''} certificate added`;
-  }
-  if (log.action === 'UPDATE' && log.new_data) {
-    const d = log.new_data;
-    if (log.table_name === 'students')     return `Updated student: ${d.name || ''}`;
-    if (log.table_name === 'fee_payments') return `Payment updated: ₹${d.amount || ''}`;
-    if (log.table_name === 'certificates') return `${d.type || ''} certificate updated`;
-  }
-  if (log.action === 'DELETE' && log.old_data) {
-    const d = log.old_data;
-    if (log.table_name === 'students')     return `Deleted student: ${d.name || ''} (${d.roll_no || ''})`;
-    if (log.table_name === 'fee_payments') return `Payment of ₹${d.amount || ''} deleted`;
-    if (log.table_name === 'certificates') return `${d.type || ''} certificate deleted`;
-  }
-  return '—';
-}
-
-// Format time from ISO string
-function formatTime(isoStr) {
-  if (!isoStr) return '—';
-  return new Date(isoStr).toLocaleTimeString('en-IN', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-// Open detail modal
-function openDetail(id) {
-  const log = allLogs.find((l) => l.id === id);
-  if (!log) return;
-
-  const content = document.getElementById('detail-content');
-
-  content.innerHTML = `
-    <div style="margin-bottom:16px;">
-      <div class="flex justify-between mb-1">
-        <span class="text-muted">Action:</span>
-        <strong>${log.action}</strong>
-      </div>
-      <div class="flex justify-between mb-1">
-        <span class="text-muted">Table:</span>
-        <strong>${log.table_name}</strong>
-      </div>
-      <div class="flex justify-between mb-1">
-        <span class="text-muted">Done By:</span>
-        <strong>${log.done_by || '—'}</strong>
-      </div>
-      <div class="flex justify-between mb-1">
-        <span class="text-muted">Date & Time:</span>
-        <strong>${formatDateTime(log.done_at)}</strong>
+    <div class="card">
+      <div class="search-bar" style="margin-bottom:0;">
+        <input
+          type="text"
+          id="search-input"
+          class="search-input"
+          placeholder="Search by name or roll number..."
+          style="flex:1;"
+        />
+        <button class="btn btn-primary" id="search-btn">Search</button>
       </div>
     </div>
 
-    ${log.old_data ? `
-      <div style="margin-bottom:16px;">
-        <div style="font-weight:600;margin-bottom:8px;color:var(--danger);">Before</div>
-        <pre style="background:#fff5f5;padding:12px;border-radius:8px;font-size:0.8rem;overflow-x:auto;border:1px solid #fadbd8;">${JSON.stringify(log.old_data, null, 2)}</pre>
+    <!-- SCHOLARSHIP LINK -->
+    <div id="scholarship-wrap" style="display:none;text-align:center;margin-top:16px;">
+      <a id="scholarship-link" href="#" target="_blank" class="btn btn-warning">
+        🎓 Apply for Scholarship
+      </a>
+    </div>
+
+    <!-- SEARCH RESULTS -->
+    <div id="search-results" style="margin-top:20px;"></div>
+  </div>
+
+  <!-- STUDENT DETAIL SECTION -->
+  <div id="student-detail" style="display:none;">
+
+    <div style="margin-bottom:16px;">
+      <button class="btn btn-outline" id="back-btn">← Back to Search</button>
+    </div>
+
+    <!-- STUDENT INFO CARD -->
+    <div class="card">
+      <div class="flex justify-between align-center flex-wrap gap-1">
+        <div>
+          <h2 id="detail-name" style="color:var(--primary);margin-bottom:4px;"></h2>
+          <div class="text-muted" id="detail-roll"></div>
+          <div class="text-muted" id="detail-batch"></div>
+        </div>
+        <div style="text-align:right;">
+          <div id="detail-phone"></div>
+        </div>
       </div>
-    ` : ''}
+    </div>
 
-    ${log.new_data ? `
-      <div>
-        <div style="font-weight:600;margin-bottom:8px;color:var(--success);">After</div>
-        <pre style="background:#f0fff4;padding:12px;border-radius:8px;font-size:0.8rem;overflow-x:auto;border:1px solid #d5f5e3;">${JSON.stringify(log.new_data, null, 2)}</pre>
+    <!-- FEE SUMMARY -->
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="label">Total Fee</div>
+        <div class="value" id="detail-total-fee">—</div>
+        <div class="sub">Before concession</div>
       </div>
-    ` : ''}
-  `;
+      <div class="summary-card success">
+        <div class="label">Total Paid</div>
+        <div class="value" id="detail-paid">—</div>
+        <div class="sub" id="detail-percent">0% paid</div>
+      </div>
+      <div class="summary-card danger">
+        <div class="label">Balance Due</div>
+        <div class="value" id="detail-balance">—</div>
+        <div class="sub">Remaining amount</div>
+      </div>
+    </div>
 
-  document.getElementById('detail-modal').classList.add('open');
-}
+    <!-- FEE BREAKDOWN -->
+    <div class="card">
+      <div class="card-title">Fee Breakdown</div>
+      <table>
+        <tbody>
+          <tr>
+            <td>College Fee</td>
+            <td class="text-right" id="break-college">—</td>
+          </tr>
+          <tr>
+            <td>Attendance Fee</td>
+            <td class="text-right" id="break-attendance">—</td>
+          </tr>
+          <tr>
+            <td>Development Fee</td>
+            <td class="text-right" id="break-development">—</td>
+          </tr>
+          <tr style="border-top:2px solid var(--border);">
+            <td><strong>Total Fee</strong></td>
+            <td class="text-right"><strong id="break-total">—</strong></td>
+          </tr>
+          <tr>
+            <td class="text-success">Concession</td>
+            <td class="text-right text-success" id="break-concession">—</td>
+          </tr>
+          <tr>
+            <td class="text-success">Scholarship</td>
+            <td class="text-right text-success" id="break-scholarship">—</td>
+          </tr>
+          <tr style="border-top:2px solid var(--border);">
+            <td><strong style="color:var(--primary);">Net Payable</strong></td>
+            <td class="text-right">
+              <strong style="color:var(--primary);font-size:1.1rem;" id="break-net">—</strong>
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
-// Setup event listeners
-function setupEventListeners() {
-  document.getElementById('refresh-btn').addEventListener('click', loadAuditLogs);
+      <!-- PROGRESS BAR -->
+      <div style="margin-top:16px;">
+        <div class="flex justify-between mb-1">
+          <small class="text-muted">Payment Progress</small>
+          <small id="progress-label">0%</small>
+        </div>
+        <div class="progress" style="height:12px;">
+          <div class="progress-bar" id="progress-bar" style="width:0%;"></div>
+        </div>
+      </div>
+    </div>
 
-  document.getElementById('detail-modal-close').addEventListener('click', () => {
-    document.getElementById('detail-modal').classList.remove('open');
+    <!-- PAYMENT HISTORY -->
+    <div class="card">
+      <div class="card-title">Payment History</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Date</th>
+              <th>Receipt No</th>
+              <th>Amount</th>
+              <th>Mode</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody id="payment-history">
+            <tr><td colspan="6" class="empty-msg">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CERTIFICATES -->
+    <div class="card">
+      <div class="card-title">Certificates</div>
+      <div id="certificates-list"></div>
+    </div>
+
+    <!-- SCHOLARSHIP LINK -->
+    <div id="scholarship-wrap-detail" style="display:none;text-align:center;margin:20px 0;">
+      <a id="scholarship-link-detail" href="#" target="_blank" class="btn btn-warning btn-lg">
+        🎓 Apply for Scholarship
+      </a>
+    </div>
+
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script>
+  // Register service worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js');
+  }
+
+  // Load scholarship link
+  async function loadScholarshipLink() {
+    const { data } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'scholarship_url')
+      .single();
+
+    if (data?.value) {
+      document.getElementById('scholarship-link').href = data.value;
+      document.getElementById('scholarship-wrap').style.display = 'block';
+      document.getElementById('scholarship-link-detail').href = data.value;
+      document.getElementById('scholarship-wrap-detail').style.display = 'block';
+    }
+  }
+
+  // Search students
+  async function searchStudents() {
+    const query = document.getElementById('search-input').value.trim();
+    if (!query) {
+      showToast('Please enter a name or roll number.', 'danger');
+      return;
+    }
+
+    const resultsDiv = document.getElementById('search-results');
+    resultsDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p>Searching...</p></div>';
+
+    const { data, error } = await supabase
+      .from('students')
+      .select('*, batches(label)')
+      .or(`name.ilike.%${query}%,roll_no.ilike.%${query}%`)
+      .limit(10);
+
+    if (error || !data) {
+      resultsDiv.innerHTML = '<div class="error-msg">Search failed. Please try again.</div>';
+      return;
+    }
+
+    if (!data.length) {
+      resultsDiv.innerHTML = '<div class="card" style="text-align:center;padding:32px;color:var(--text-muted);">No students found. Please check your name or roll number.</div>';
+      return;
+    }
+
+    if (data.length === 1) {
+      loadStudentDetail(data[0].id);
+      return;
+    }
+
+    resultsDiv.innerHTML = `
+      <div class="card">
+        <div class="card-title" style="margin-bottom:12px;">Select your record</div>
+        ${data.map((s) => `
+          <div
+            onclick="loadStudentDetail('${s.id}')"
+            style="padding:12px;border:1.5px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;transition:border-color 0.2s;"
+            onmouseover="this.style.borderColor='var(--primary)'"
+            onmouseout="this.style.borderColor='var(--border)'"
+          >
+            <strong>${s.name}</strong>
+            <span class="text-muted" style="margin-left:8px;">${s.roll_no}</span>
+            <span class="badge badge-info" style="margin-left:8px;">${s.batches?.label || ''}</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  // Load full student detail
+  async function loadStudentDetail(studentId) {
+    document.getElementById('search-section').style.display = 'none';
+    document.getElementById('student-detail').style.display = 'block';
+
+    // Update URL without reload
+    const url = new URL(window.location.href);
+    url.searchParams.set('id', studentId);
+    window.history.pushState({}, '', url);
+
+    // Load student
+    const { data: student } = await supabase
+      .from('students')
+      .select('*, batches(label)')
+      .eq('id', studentId)
+      .single();
+
+    if (!student) {
+      showToast('Student not found.', 'danger');
+      goBack();
+      return;
+    }
+
+    // Load payments
+    const { data: payments } = await supabase
+      .from('fee_payments')
+      .select('*')
+      .eq('student_id', studentId)
+      .order('payment_date', { ascending: false });
+
+    // Load certificates
+    const { data: certificates } = await supabase
+      .from('certificates')
+      .select('*')
+      .eq('student_id', studentId)
+      .order('created_at', { ascending: false });
+
+    // Fill student info
+    document.getElementById('detail-name').textContent  = student.name;
+    document.getElementById('detail-roll').textContent  = `Roll No: ${student.roll_no}`;
+    document.getElementById('detail-batch').textContent = `Batch: ${student.batches?.label || '—'}`;
+    document.getElementById('detail-phone').innerHTML   = student.phone
+      ? `📞 ${student.phone}`
+      : '';
+
+    // Fee breakdown
+    document.getElementById('break-college').textContent    = formatCurrency(student.college_fee);
+    document.getElementById('break-attendance').textContent = formatCurrency(student.attendance_fee);
+    document.getElementById('break-development').textContent = formatCurrency(student.development_fee);
+    document.getElementById('break-total').textContent      = formatCurrency(student.total_fee);
+    document.getElementById('break-concession').textContent = `− ${formatCurrency(student.concession)}`;
+    document.getElementById('break-scholarship').textContent = `− ${formatCurrency(student.scholarship_amount)}`;
+    document.getElementById('break-net').textContent        = formatCurrency(student.net_payable);
+
+    // Fee summary
+    const { netPayable, totalPaid, balance, percent } = calcFeeSummary(student, payments || []);
+    document.getElementById('detail-total-fee').textContent = formatCurrency(student.total_fee);
+    document.getElementById('detail-paid').textContent      = formatCurrency(totalPaid);
+    document.getElementById('detail-balance').textContent   = formatCurrency(balance);
+    document.getElementById('detail-percent').textContent   = `${percent}% paid`;
+    document.getElementById('progress-label').textContent   = `${percent}%`;
+
+    const bar = document.getElementById('progress-bar');
+    bar.style.width = percent + '%';
+    bar.className = 'progress-bar';
+    if (percent < 40) bar.classList.add('danger');
+    else if (percent < 75) bar.classList.add('warning');
+
+    // Payment history table
+    const tbody = document.getElementById('payment-history');
+    if (!payments || !payments.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-msg">No payments recorded yet</td></tr>';
+    } else {
+      tbody.innerHTML = payments.map((p, i) => `
+        <tr>
+          <td>${payments.length - i}</td>
+          <td>${formatDate(p.payment_date)}</td>
+          <td>${p.receipt_no || '—'}</td>
+          <td><strong>${formatCurrency(p.amount)}</strong></td>
+          <td>
+            <span class="badge ${p.mode === 'cash' ? 'badge-warning' : 'badge-success'}">
+              ${p.mode}
+            </span>
+          </td>
+          <td><small>${p.notes || '—'}</small></td>
+        </tr>
+      `).join('');
+    }
+
+    // Certificates
+    const certDiv = document.getElementById('certificates-list');
+    if (!certificates || !certificates.length) {
+      certDiv.innerHTML = '<div class="empty-msg" style="padding:20px;">No certificate requests found</div>';
+    } else {
+      certDiv.innerHTML = certificates.map((c) => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+          <div>
+            <span class="badge badge-muted">${c.type}</span>
+            <small class="text-muted" style="margin-left:8px;">Requested: ${formatDate(c.requested_date)}</small>
+          </div>
+          <div>
+            ${c.issued_date
+              ? `<span class="badge badge-success">Issued on ${formatDate(c.issued_date)}</span>`
+              : `<span class="badge badge-danger">Pending</span>`
+            }
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+
+  // Go back to search
+  function goBack() {
+    document.getElementById('student-detail').style.display = 'none';
+    document.getElementById('search-section').style.display = 'block';
+    document.getElementById('search-results').innerHTML = '';
+    const url = new URL(window.location.href);
+    url.searchParams.delete('id');
+    window.history.pushState({}, '', url);
+  }
+
+  // Setup
+  document.getElementById('search-btn').addEventListener('click', searchStudents);
+  document.getElementById('search-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') searchStudents();
   });
-  document.getElementById('detail-close-btn').addEventListener('click', () => {
-    document.getElementById('detail-modal').classList.remove('open');
-  });
+  document.getElementById('back-btn').addEventListener('click', goBack);
 
-  document.getElementById('load-more-btn').addEventListener('click', () => {
-    currentPage++;
-    renderLogs();
-  });
+  // Check if coming with ?id= directly
+  const params = new URLSearchParams(window.location.search);
+  const directId = params.get('id');
+  if (directId) {
+    loadStudentDetail(directId);
+  }
 
-  // Filters
-  document.getElementById('search-input').addEventListener('input', debounce(renderLogs));
-  document.getElementById('table-filter').addEventListener('change', renderLogs);
-  document.getElementById('action-filter').addEventListener('change', renderLogs);
-  document.getElementById('from-date').addEventListener('change', renderLogs);
-  document.getElementById('to-date').addEventListener('change', renderLogs);
-}
+  // Load scholarship link
+  loadScholarshipLink();
+</script>
 
-// Init
-initAudit();
+</body>
+</html>
