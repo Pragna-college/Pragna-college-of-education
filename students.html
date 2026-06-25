@@ -33,7 +33,7 @@
 
   <div class="page-header">
     <h1 class="page-title">Students</h1>
-    <button class="btn btn-primary" id="add-student-btn">+ Add Student</button>
+    <div class="flex gap-1 flex-wrap">   <button class="btn btn-success" id="upload-excel-btn">📤 Upload Excel</button>   <button class="btn btn-primary" id="add-student-btn">+ Add Student</button> </div>
   </div>
 
   <!-- FILTERS -->
@@ -184,7 +184,34 @@
   </div>
 </div>
 
+ <!-- EXCEL UPLOAD MODAL -->
+<div class="modal-overlay" id="excel-modal">
+  <div class="modal" style="max-width:760px;">
+    <div class="modal-header">
+      <div class="modal-title">Upload Students Excel</div>
+      <button class="modal-close" id="excel-modal-close">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Select Excel File</label>
+        <input type="file" id="excel-file" class="form-control" accept=".xlsx,.xls,.csv" />
+        <div class="form-hint">
+          Required columns: Hall ticket no, Name, College fee, Dev Fee, Add Fee, Fee 1-Date 1 up to Fee 10-Date 10
+        </div>
+      </div>
+
+      <div id="excel-preview" style="margin-top:16px;"></div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="excel-cancel-btn">Cancel</button>
+      <button class="btn btn-primary" id="import-excel-btn" disabled>Import Data</button>
+    </div>
+  </div>
+</div> 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script src="js/config.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/auth.js"></script>
