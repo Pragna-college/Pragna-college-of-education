@@ -363,6 +363,23 @@ function toNumber(value) {
 }
 
 // Read Excel file
+// Convert Yes/No values safely
+function normalizeYesNo(value) {
+  if (!value) return 'No';
+
+  const v = String(value).trim().toLowerCase();
+
+  if (v === 'yes' || v === 'y' || v === 'submitted' || v === '1') {
+    return 'Yes';
+  }
+
+  if (v === 'no' || v === 'n' || v === 'not submitted' || v === '0') {
+    return 'No';
+  }
+
+  return String(value).trim();
+}
+
 function handleExcelFile(e) {
   const file = e.target.files[0];
   if (!file) return;
