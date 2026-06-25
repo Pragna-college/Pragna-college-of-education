@@ -307,7 +307,321 @@ function setupEventListeners() {
   ['college-fee', 'attendance-fee', 'development-fee', 'concession'].forEach((id) => {
     document.getElementById(id).addEventListener('input', updateCalc);
   });
+  // Excel upload
+  document.getElementById('upload-excel-btn').addEventListener('click', openExcelModal);
+  document.getElementById('excel-modal-close').addEventListener('click', closeExcelModal);
+  document.getElementById('excel-cancel-btn').addEventListener('click', closeExcelModal);
+  document.getElementById('excel-file').addEventListener('change', handleExcelFile);
+  document.getElementById('import-excel-btn').addEventListener('click', importExcelData);
+  }
+
+// ================= EXCEL UPLOAD =================
+
+let excelRows = [];
+
+// Open Excel modal
+function openExcelModal() {
+  excelRows = [];
+  document.getElementById('excel-file').value = '';
+  document.getElementById('excel-preview').innerHTML = '';
+  document.getElementById('import-excel-btn').disabled = true;
+  document.getElementById('excel-modal').classList.add('open');
 }
 
+// Close Excel modal
+function closeExcelModal() {
+  document.getElementById('excel-modal').classList.remove('open');
+}
+
+// Convert Excel date to YYYY-MM-DD
+function parseExcelDate(value) {
+  if (!value) return null;
+
+  if (typeof value === 'number') {
+    const date = XLSX.SSF.parse_date_code(value);
+    if (!date) return null;
+    const yyyy = date.y;
+    const mm = String(date.m).padStart(2, '0');
+    const dd = String(date.d).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  const d = new Date(value);
+  if (!isNaN(d)) {
+    return d.toISOString().split('T')[0];
+  }
+
+  return null;
+}
+
+// Convert amount safely
+function toNumber(value) {
+  if (value === null || value === undefined || value === '') return 0;
+  const cleaned = String(value).replace(/,/g, '').trim();
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? 0 : num;
+}
+
+// Read Excel file
+function handleExcelFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = function(event) {
+    const data = new Uint8Array(event.target.result);
+    const workbook = XLSX.read(data, { type: 'array' });
+    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(firstSheet, { defval: '' });
+
+    excelRows = rows.map((row, index) => {
+      const rollNo = String(row['Hall ticket no'] || '').trim();
+      const name = String(row['Name'] || '').trim();
+
+      const collegeFee = toNumber(row['College fee']);
+      const devFee = toNumber(row['Dev Fee']);
+      const addFee = toNumber(row['Add Fee']);
+
+      const payments = [];
+
+      for (let i = 1; i <= 10; i++) {
+        const amount = toNumber(row[`Fee ${i}`]);
+        const date = parseExcelDate(row[`Date ${i}`]);
+
+        if (amount > 0) {
+          payments.push({
+            amount,
+            payment_date: date || new Date().toISOString().split('T')[0],
+            mode: 'cash',
+            receipt_no: null,
+            notes: `Imported from Excel - Fee ${i}`,
+          });
+        }
+      }
+
+      return {
+        row_no: index + 2,
+        roll_no: rollNo,
+        name,
+        father_name: String(row['Father name'] || '').trim(),
+        quota: String(row['Quota'] || '').trim(),
+        course: String(row['Course'] || '').trim(),
+        ssc: String(row['SSC'] || '').trim(),
+        inter: String(row['Inter'] || '').trim(),
+        degree: String(row['Degree'] || '').trim(),
+        memos: String(row['Memos'] || '').trim(),
+        tc: String(row['TC'] || '').trim(),
+        college_fee: collegeFee,
+        attendance_fee: addFee,
+        development_fee: devFee,
+        saree_amount: toNumber(row['Saree Amount']),
+        id_card: toNumber(row['ID Card']),
+        concession: 0,
+        scholarship_amount: 0,
+        notes: '',
+        payments,
+        valid: !!rollNo && !!name,
+      };
+    });
+
+    renderExcelPreview();
+  };
+
+  reader.readAsArrayBuffer(file);
+}
+
+// Preview Excel rows before import
+function renderExcelPreview() {
+  const preview = document.getElementById('excel-preview');
+
+  if (!excelRows.length) {
+    preview.innerHTML = '<div class="error-msg">No rows found in Excel.</div>';
+    document.getElementById('import-excel-btn').disabled = true;
+    return;
+  }
+
+  const validCount = excelRows.filter(r => r.valid).length;
+  const invalidCount = excelRows.length - validCount;
+
+  preview.innerHTML = `
+    <div class="summary-grid">
+      <div class="summary-card info">
+        <div class="label">Total Rows</div>
+        <div class="value">${excelRows.length}</div>
+      </div>
+      <div class="summary-card success">
+        <div class="label">Valid Rows</div>
+        <div class="value">${validCount}</div>
+      </div>
+      <div class="summary-card danger">
+        <div class="label">Invalid Rows</div>
+        <div class="value">${invalidCount}</div>
+      </div>
+    </div>
+
+    <div class="table-wrap" style="max-height:320px;overflow:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>Row</th>
+            <th>Hall Ticket</th>
+            <th>Name</th>
+            <th>Course</th>
+            <th>Total Fee</th>
+            <th>Payments</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${excelRows.slice(0, 30).map(r => {
+            const totalFee = r.college_fee + r.attendance_fee + r.development_fee;
+            return `
+              <tr>
+                <td>${r.row_no}</td>
+                <td>${r.roll_no || '—'}</td>
+                <td>${r.name || '—'}</td>
+                <td>${r.course || '—'}</td>
+                <td>${formatCurrency(totalFee)}</td>
+                <td>${r.payments.length}</td>
+                <td>
+                  ${
+                    r.valid
+                      ? '<span class="badge badge-success">Ready</span>'
+                      : '<span class="badge badge-danger">Missing hall ticket/name</span>'
+                  }
+                </td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    ${excelRows.length > 30 ? `<p class="text-muted mt-1">Showing first 30 rows only.</p>` : ''}
+  `;
+
+  document.getElementById('import-excel-btn').disabled = validCount === 0;
+}
+
+// Import Excel rows into Supabase
+async function importExcelData() {
+  const validRows = excelRows.filter(r => r.valid);
+
+  if (!validRows.length) {
+    showToast('No valid rows to import.', 'danger');
+    return;
+  }
+
+  const batchId = batches[0]?.id;
+
+  if (!batchId) {
+    showToast('No batch found. Please create batch first.', 'danger');
+    return;
+  }
+
+  const btn = document.getElementById('import-excel-btn');
+  btn.disabled = true;
+  btn.textContent = 'Importing...';
+
+  let successCount = 0;
+  let paymentCount = 0;
+  let failedRows = [];
+
+  try {
+    const user = await getCurrentUser();
+
+    for (const row of validRows) {
+      const studentPayload = {
+        roll_no: row.roll_no,
+        name: row.name,
+        father_name: row.father_name || null,
+        quota: row.quota || null,
+        course: row.course || null,
+        ssc: row.ssc || null,
+        inter: row.inter || null,
+        degree: row.degree || null,
+        memos: row.memos || null,
+        tc: row.tc || null,
+        batch_id: batchId,
+        college_fee: row.college_fee,
+        attendance_fee: row.attendance_fee,
+        development_fee: row.development_fee,
+        saree_amount: row.saree_amount,
+        id_card: row.id_card,
+        concession: row.concession,
+        scholarship_amount: row.scholarship_amount,
+        notes: row.notes || null,
+      };
+
+      const { data: studentData, error: studentError } = await supabase
+        .from('students')
+        .insert(studentPayload)
+        .select()
+        .single();
+
+      if (studentError) {
+        failedRows.push({
+          row: row.row_no,
+          name: row.name,
+          reason: studentError.message,
+        });
+        continue;
+      }
+
+      successCount++;
+
+      await writeAudit('students', 'INSERT', null, {
+        ...studentPayload,
+        imported_from: 'excel',
+      });
+
+      if (row.payments.length > 0) {
+        const paymentPayload = row.payments.map(p => ({
+          student_id: studentData.id,
+          amount: p.amount,
+          mode: p.mode,
+          payment_date: p.payment_date,
+          receipt_no: p.receipt_no,
+          notes: p.notes,
+          recorded_by: user?.email || 'excel import',
+        }));
+
+        const { error: paymentError } = await supabase
+          .from('fee_payments')
+          .insert(paymentPayload);
+
+        if (!paymentError) {
+          paymentCount += paymentPayload.length;
+
+          await writeAudit('fee_payments', 'INSERT', null, {
+            student: row.name,
+            roll_no: row.roll_no,
+            payment_count: paymentPayload.length,
+            imported_from: 'excel',
+          });
+        }
+      }
+    }
+
+    let message = `${successCount} students imported. ${paymentCount} payments added.`;
+
+    if (failedRows.length > 0) {
+      message += ` ${failedRows.length} rows failed.`;
+      console.warn('Failed rows:', failedRows);
+    }
+
+    showToast(message, failedRows.length ? 'warning' : 'success');
+
+    closeExcelModal();
+    await loadStudents();
+
+  } catch (err) {
+    showToast(err.message || 'Excel import failed.', 'danger');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Import Data';
+  }
+}
 // Init
 initStudents();
