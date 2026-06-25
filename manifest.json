@@ -1,0 +1,39 @@
+{
+  "name": "Pragna College of Education",
+  "short_name": "Pragna",
+  "description": "Fee and Certificate Tracker for Pragna College of Education",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#1a5276",
+  "theme_color": "#1a5276",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "url": "/index.html",
+      "description": "View main dashboard"
+    },
+    {
+      "name": "Students",
+      "url": "/students.html",
+      "description": "Manage students"
+    },
+    {
+      "name": "Payments",
+      "url": "/payments.html",
+      "description": "Record payments"
+    }
+  ]
+}
