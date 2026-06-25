@@ -230,6 +230,16 @@
     await loadBatchFilter();
   }
 
+  function showSearchPage() {
+    document.getElementById('student-detail').style.display = 'none';
+    document.getElementById('search-section').style.display = 'block';
+  }
+
+  function showStudentDetailPage() {
+    document.getElementById('search-section').style.display = 'none';
+    document.getElementById('student-detail').style.display = 'block';
+  }
+
   async function loadCourseFilter() {
     const { data } = await supabase
       .from('students')
@@ -336,13 +346,14 @@
     `;
   }
 
-  async function loadStudentDetail(studentId) {
-    document.getElementById('search-section').style.display = 'none';
-    document.getElementById('student-detail').style.display = 'block';
+  async function loadStudentDetail(studentId, updateUrl = true) {
+    showStudentDetailPage();
 
-    const url = new URL(window.location.href);
-    url.searchParams.set('id', studentId);
-    window.history.pushState({}, '', url);
+    if (updateUrl) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('id', studentId);
+      window.history.pushState({}, '', url);
+    }
 
     const { data: student, error } = await supabase
       .from('students')
@@ -352,7 +363,7 @@
 
     if (error || !student) {
       showToast('Student not found.', 'danger');
-      goBack();
+      showSearchPage();
       return;
     }
 
@@ -445,8 +456,7 @@
   }
 
   function goBack() {
-    document.getElementById('student-detail').style.display = 'none';
-    document.getElementById('search-section').style.display = 'block';
+    showSearchPage();
     document.getElementById('search-results').innerHTML = '';
 
     const url = new URL(window.location.href);
@@ -468,15 +478,23 @@
     }
   });
 
-  loadSearchFilters();
-  loadScholarshipLink();
+  async function initStudentView() {
+    await loadScholarshipLink();
 
-  const params = new URLSearchParams(window.location.search);
-  const directId = params.get('id');
+    const params = new URLSearchParams(window.location.search);
+    const directId = params.get('id');
 
-  if (directId) {
-    loadStudentDetail(directId);
+    if (directId) {
+      showStudentDetailPage();
+      await loadStudentDetail(directId, false);
+      return;
+    }
+
+    showSearchPage();
+    await loadSearchFilters();
   }
+
+  initStudentView();
 </script>
 
 </body>
