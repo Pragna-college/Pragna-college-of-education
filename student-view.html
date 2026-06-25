@@ -205,7 +205,6 @@
     navigator.serviceWorker.register('/sw.js');
   }
 
-  // Load scholarship link
   async function loadScholarshipLink() {
     const { data } = await supabase
       .from('app_settings')
@@ -214,147 +213,188 @@
       .single();
 
     if (data?.value) {
-      document.getElementById('scholarship-link').href = data.value;
-      document.getElementById('scholarship-wrap').style.display = 'block';
-      document.getElementById('scholarship-link-detail').href = data.value;
-      document.getElementById('scholarship-wrap-detail').style.display = 'block';
+      const link1 = document.getElementById('scholarship-link');
+      const wrap1 = document.getElementById('scholarship-wrap');
+      const link2 = document.getElementById('scholarship-link-detail');
+      const wrap2 = document.getElementById('scholarship-wrap-detail');
+
+      if (link1) link1.href = data.value;
+      if (wrap1) wrap1.style.display = 'block';
+      if (link2) link2.href = data.value;
+      if (wrap2) wrap2.style.display = 'block';
     }
   }
 
-  // Search students
+  async function loadSearchFilters() {
+    await loadCourseFilter();
+    await loadBatchFilter();
+  }
+
+  async function loadCourseFilter() {
+    const { data } = await supabase
+      .from('students')
+      .select('course');
+
+    const select = document.getElementById('course-filter');
+    if (!select || !data) return;
+
+    select.innerHTML = '<option value="">All Courses</option>';
+
+    const courses = [...new Set(data.map(s => s.course).filter(Boolean))];
+
+    courses.forEach(course => {
+      const opt = document.createElement('option');
+      opt.value = course;
+      opt.textContent = course;
+      select.appendChild(opt);
+    });
+  }
+
+  async function loadBatchFilter() {
+    const { data } = await supabase
+      .from('batches')
+      .select('*')
+      .order('year_start');
+
+    const select = document.getElementById('batch-filter');
+    if (!select || !data) return;
+
+    select.innerHTML = '<option value="">All Batches</option>';
+
+    data.forEach(batch => {
+      const opt = document.createElement('option');
+      opt.value = batch.id;
+      opt.textContent = batch.label;
+      select.appendChild(opt);
+    });
+  }
+
   async function searchStudents() {
-  const query = document.getElementById('search-input').value.trim();
-  const course = document.getElementById('course-filter').value;
-  const batchId = document.getElementById('batch-filter').value;
+    const query = document.getElementById('search-input').value.trim();
+    const course = document.getElementById('course-filter').value;
+    const batchId = document.getElementById('batch-filter').value;
+    const resultsDiv = document.getElementById('search-results');
 
-  const resultsDiv = document.getElementById('search-results');
+    if (!query && !course && !batchId) {
+      showToast('Please search or select course/batch.', 'danger');
+      return;
+    }
 
-  if (!query && !course && !batchId) {
-    showToast('Please search or select course/batch.', 'danger');
-    return;
+    resultsDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p>Searching...</p></div>';
+
+    let request = supabase
+      .from('students')
+      .select('*, batches(label)')
+      .limit(50);
+
+    if (query) {
+      request = request.or(`name.ilike.%${query}%,roll_no.ilike.%${query}%`);
+    }
+
+    if (course) {
+      request = request.eq('course', course);
+    }
+
+    if (batchId) {
+      request = request.eq('batch_id', batchId);
+    }
+
+    const { data, error } = await request;
+
+    if (error || !data) {
+      resultsDiv.innerHTML = '<div class="error-msg">Search failed. Please try again.</div>';
+      return;
+    }
+
+    if (!data.length) {
+      resultsDiv.innerHTML = '<div class="card" style="text-align:center;padding:32px;color:var(--text-muted);">No students found.</div>';
+      return;
+    }
+
+    if (data.length === 1) {
+      loadStudentDetail(data[0].id);
+      return;
+    }
+
+    resultsDiv.innerHTML = `
+      <div class="card">
+        <div class="card-title" style="margin-bottom:12px;">Select student record</div>
+        ${data.map((s) => `
+          <div
+            onclick="loadStudentDetail('${s.id}')"
+            style="padding:12px;border:1.5px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;transition:border-color 0.2s;"
+            onmouseover="this.style.borderColor='var(--primary)'"
+            onmouseout="this.style.borderColor='var(--border)'"
+          >
+            <strong>${s.name}</strong>
+            <span class="text-muted" style="margin-left:8px;">${s.roll_no}</span>
+            <span class="badge badge-info" style="margin-left:8px;">${s.batches?.label || ''}</span>
+            ${s.course ? `<span class="badge badge-muted" style="margin-left:8px;">${s.course}</span>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    `;
   }
 
-  resultsDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p>Searching...</p></div>';
-
-  let request = supabase
-    .from('students')
-    .select('*, batches(label)')
-    .limit(50);
-
-  if (query) {
-    request = request.or(`name.ilike.%${query}%,roll_no.ilike.%${query}%`);
-  }
-
-  if (course) {
-    request = request.eq('course', course);
-  }
-
-  if (batchId) {
-    request = request.eq('batch_id', batchId);
-  }
-
-  const { data, error } = await request;
-
-  if (error || !data) {
-    resultsDiv.innerHTML = '<div class="error-msg">Search failed. Please try again.</div>';
-    return;
-  }
-
-  if (!data.length) {
-    resultsDiv.innerHTML = '<div class="card" style="text-align:center;padding:32px;color:var(--text-muted);">No students found.</div>';
-    return;
-  }
-
-  if (data.length === 1) {
-    loadStudentDetail(data[0].id);
-    return;
-  }
-
-  resultsDiv.innerHTML = `
-    <div class="card">
-      <div class="card-title" style="margin-bottom:12px;">Select student record</div>
-      ${data.map((s) => `
-        <div
-          onclick="loadStudentDetail('${s.id}')"
-          style="padding:12px;border:1.5px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;transition:border-color 0.2s;"
-          onmouseover="this.style.borderColor='var(--primary)'"
-          onmouseout="this.style.borderColor='var(--border)'"
-        >
-          <strong>${s.name}</strong>
-          <span class="text-muted" style="margin-left:8px;">${s.roll_no}</span>
-          <span class="badge badge-info" style="margin-left:8px;">${s.batches?.label || ''}</span>
-          ${s.course ? `<span class="badge badge-muted" style="margin-left:8px;">${s.course}</span>` : ''}
-        </div>
-      `).join('')}
-    </div>
-  `;
-}
-
-  // Load full student detail
   async function loadStudentDetail(studentId) {
     document.getElementById('search-section').style.display = 'none';
     document.getElementById('student-detail').style.display = 'block';
 
-    // Update URL without reload
     const url = new URL(window.location.href);
     url.searchParams.set('id', studentId);
     window.history.pushState({}, '', url);
 
-    // Load student
-    const { data: student } = await supabase
+    const { data: student, error } = await supabase
       .from('students')
       .select('*, batches(label)')
       .eq('id', studentId)
       .single();
 
-    if (!student) {
+    if (error || !student) {
       showToast('Student not found.', 'danger');
       goBack();
       return;
     }
 
-    // Load payments
     const { data: payments } = await supabase
       .from('fee_payments')
       .select('*')
       .eq('student_id', studentId)
       .order('payment_date', { ascending: false });
 
-    
-
-    // Fill student info
-    document.getElementById('detail-name').textContent  = student.name;
-    document.getElementById('detail-roll').textContent  = `Roll No: ${student.roll_no}`;
+    document.getElementById('detail-name').textContent = student.name;
+    document.getElementById('detail-roll').textContent = `Hall Ticket No: ${student.roll_no}`;
     document.getElementById('detail-batch').textContent = `Batch: ${student.batches?.label || '—'} | Course: ${student.course || '—'}`;
-    document.getElementById('detail-phone').innerHTML   = student.phone
-      ? `📞 ${student.phone}`
-      : '';
+    document.getElementById('detail-phone').innerHTML = student.phone ? `📞 ${student.phone}` : '';
 
-    // Fee breakdown
-    document.getElementById('break-college').textContent    = formatCurrency(student.college_fee);
+    document.getElementById('break-college').textContent = formatCurrency(student.college_fee);
     document.getElementById('break-attendance').textContent = formatCurrency(student.attendance_fee);
     document.getElementById('break-development').textContent = formatCurrency(student.development_fee);
-    document.getElementById('break-total').textContent      = formatCurrency(student.total_fee);
+    document.getElementById('break-total').textContent = formatCurrency(student.total_fee);
     document.getElementById('break-concession').textContent = `− ${formatCurrency(student.concession)}`;
     document.getElementById('break-scholarship').textContent = `− ${formatCurrency(student.scholarship_amount)}`;
-    document.getElementById('break-net').textContent        = formatCurrency(student.net_payable);
+    document.getElementById('break-net').textContent = formatCurrency(student.net_payable);
 
-    // Fee summary
-    const { netPayable, totalPaid, balance, percent } = calcFeeSummary(student, payments || []);
+    const { totalPaid, balance, percent } = calcFeeSummary(student, payments || []);
+
     document.getElementById('detail-total-fee').textContent = formatCurrency(student.total_fee);
-    document.getElementById('detail-paid').textContent      = formatCurrency(totalPaid);
-    document.getElementById('detail-balance').textContent   = formatCurrency(balance);
-    document.getElementById('detail-percent').textContent   = `${percent}% paid`;
-    document.getElementById('progress-label').textContent   = `${percent}%`;
+    document.getElementById('detail-paid').textContent = formatCurrency(totalPaid);
+    document.getElementById('detail-balance').textContent = formatCurrency(balance);
+    document.getElementById('detail-percent').textContent = `${percent}% paid`;
+    document.getElementById('progress-label').textContent = `${percent}%`;
 
     const bar = document.getElementById('progress-bar');
     bar.style.width = percent + '%';
     bar.className = 'progress-bar';
-    if (percent < 40) bar.classList.add('danger');
-    else if (percent < 75) bar.classList.add('warning');
 
-    // Payment history table
+    if (percent < 40) {
+      bar.classList.add('danger');
+    } else if (percent < 75) {
+      bar.classList.add('warning');
+    }
+
     const tbody = document.getElementById('payment-history');
+
     if (!payments || !payments.length) {
       tbody.innerHTML = '<tr><td colspan="6" class="empty-msg">No payments recorded yet</td></tr>';
     } else {
@@ -374,106 +414,69 @@
       `).join('');
     }
 
-    // Certificates
-    // Submitted Documents
-const docsDiv = document.getElementById('documents-list');
+    const docsDiv = document.getElementById('documents-list');
 
-const documents = [
-  { label: 'SSC', value: student.ssc },
-  { label: 'Inter', value: student.inter },
-  { label: 'Degree', value: student.degree },
-  { label: 'Memos', value: student.memos },
-  { label: 'TC', value: student.tc },
-];
+    const documents = [
+      { label: 'SSC', value: student.ssc },
+      { label: 'Inter', value: student.inter },
+      { label: 'Degree', value: student.degree },
+      { label: 'Memos', value: student.memos },
+      { label: 'TC', value: student.tc },
+    ];
 
-docsDiv.innerHTML = documents.map((doc) => {
-  const submitted = String(doc.value || '').toLowerCase() === 'yes';
+    docsDiv.innerHTML = documents.map((doc) => {
+      const submitted = String(doc.value || '').toLowerCase() === 'yes';
 
-  return `
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);">
-      <div>
-        <strong>${doc.label}</strong>
-      </div>
-      <div>
-        ${
-          submitted
-            ? '<span class="badge badge-success">Submitted</span>'
-            : '<span class="badge badge-danger">Not Submitted</span>'
-        }
-      </div>
-    </div>
-  `;
-}).join('');
+      return `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);">
+          <div>
+            <strong>${doc.label}</strong>
+          </div>
+          <div>
+            ${
+              submitted
+                ? '<span class="badge badge-success">Submitted</span>'
+                : '<span class="badge badge-danger">Not Submitted</span>'
+            }
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
 
-  // Go back to search
   function goBack() {
     document.getElementById('student-detail').style.display = 'none';
     document.getElementById('search-section').style.display = 'block';
     document.getElementById('search-results').innerHTML = '';
+
     const url = new URL(window.location.href);
     url.searchParams.delete('id');
     window.history.pushState({}, '', url);
   }
-async function loadSearchFilters() {
-  await loadCourseFilter();
-  await loadBatchFilter();
-}
 
-async function loadCourseFilter() {
-  const { data } = await supabase
-    .from('students')
-    .select('course');
-
-  const select = document.getElementById('course-filter');
-  if (!select || !data) return;
-
-  const courses = [...new Set(data.map(s => s.course).filter(Boolean))];
-
-  courses.forEach(course => {
-    const opt = document.createElement('option');
-    opt.value = course;
-    opt.textContent = course;
-    select.appendChild(opt);
-  });
-}
-
-async function loadBatchFilter() {
-  const { data } = await supabase
-    .from('batches')
-    .select('*')
-    .order('year_start');
-
-  const select = document.getElementById('batch-filter');
-  if (!select || !data) return;
-
-  data.forEach(batch => {
-    const opt = document.createElement('option');
-    opt.value = batch.id;
-    opt.textContent = batch.label;
-    select.appendChild(opt);
-  });
-}
-  // Setup
   document.getElementById('search-btn').addEventListener('click', searchStudents);
+
   document.getElementById('search-input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') searchStudents();
   });
-  document.getElementById('back-btn').addEventListener('click', () => {   if (document.referrer) {     window.history.back();   } else {     goBack();   } });
 
+  document.getElementById('back-btn').addEventListener('click', () => {
+    if (document.referrer) {
+      window.history.back();
+    } else {
+      goBack();
+    }
+  });
 
-  // Load filters and scholarship link
-loadSearchFilters();
-loadScholarshipLink();
+  loadSearchFilters();
+  loadScholarshipLink();
 
-// Check if coming with ?id= directly
-const params = new URLSearchParams(window.location.search);
-const directId = params.get('id');
+  const params = new URLSearchParams(window.location.search);
+  const directId = params.get('id');
 
-if (directId) {
-  document.getElementById('search-section').style.display = 'none';
-  document.getElementById('student-detail').style.display = 'block';
-  loadStudentDetail(directId);
-}
+  if (directId) {
+    loadStudentDetail(directId);
+  }
 </script>
 
 </body>
