@@ -53,17 +53,39 @@ async function loadStudents() {
     .select('student_id, amount');
 
   allStudents = students || [];
-  allPayments = payments || [];
+allPayments = payments || [];
 
-  renderStudents();
+loadCourseFilter();
+renderStudents();
 }
+function loadCourseFilter() {
+  const select = document.getElementById('course-filter');
+  if (!select) return;
 
+  const currentValue = select.value;
+  select.innerHTML = '<option value="">All Courses</option>';
+
+  const courses = [...new Set(
+    allStudents
+      .map(s => s.course)
+      .filter(Boolean)
+  )];
+
+  courses.forEach(course => {
+    const opt = document.createElement('option');
+    opt.value = course;
+    opt.textContent = course;
+    select.appendChild(opt);
+  });
+
+  select.value = currentValue;
+}
 // Render students table
 function renderStudents() {
   const search  = document.getElementById('search-input').value.toLowerCase();
-  const batchId = document.getElementById('batch-filter').value;
-  const status  = document.getElementById('status-filter').value;
-
+const batchId = document.getElementById('batch-filter').value;
+const status  = document.getElementById('status-filter').value;
+const course  = document.getElementById('course-filter').value;
   // Build paid map
   const paidMap = {};
   allPayments.forEach((p) => {
@@ -78,9 +100,12 @@ function renderStudents() {
     const paid        = paidMap[s.id] || 0;
     const balance     = (s.net_payable || 0) - paid;
     const matchStatus = !status ||
-      (status === 'due'   && balance > 0) ||
-      (status === 'clear' && balance <= 0);
-    return matchSearch && matchBatch && matchStatus;
+  (status === 'due'   && balance > 0) ||
+  (status === 'clear' && balance <= 0);
+
+const matchCourse = !course || s.course === course;
+
+return matchSearch && matchBatch && matchStatus && matchCourse;
   });
 
   const tbody = document.getElementById('students-table');
@@ -301,7 +326,7 @@ function setupEventListeners() {
   // Search and filters
   document.getElementById('search-input').addEventListener('input', debounce(renderStudents));
   document.getElementById('batch-filter').addEventListener('change', renderStudents);
-  document.getElementById('status-filter').addEventListener('change', renderStudents);
+  document.getElementById('course-filter').addEventListener('change', renderStudents);
 
   // Fee calc preview
   ['college-fee', 'attendance-fee', 'development-fee', 'concession'].forEach((id) => {
