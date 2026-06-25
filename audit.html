@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Audit Log — Pragna College</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="manifest" href="manifest.json" />
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <a href="index.html" class="navbar-brand">
+    <span>🎓</span> Pragna College
+  </a>
+  <button class="hamburger" id="hamburger">☰</button>
+  <div class="navbar-menu" id="nav-menu">
+    <a href="index.html">Dashboard</a>
+    <a href="students.html">Students</a>
+    <a href="payments.html">Payments</a>
+    <a href="certificates.html">Certificates</a>
+    <a href="audit.html" class="active">Audit Log</a>
+  </div>
+  <div class="navbar-right">
+    <span id="user-email"></span>
+    <button id="logout-btn" class="btn btn-outline" style="color:white;border-color:rgba(255,255,255,0.4);padding:5px 12px;font-size:0.8rem;">Logout</button>
+  </div>
+</nav>
+
+<!-- PAGE -->
+<div class="page">
+
+  <div class="page-header">
+    <h1 class="page-title">Audit Log</h1>
+    <button class="btn btn-outline" id="refresh-btn">🔄 Refresh</button>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="card" style="padding:14px 20px;">
+    <div class="search-bar">
+      <input type="text" id="search-input" class="search-input" placeholder="Search by user or table..." />
+      <select id="table-filter" class="form-control" style="width:auto;">
+        <option value="">All Tables</option>
+        <option value="students">Students</option>
+        <option value="fee_payments">Payments</option>
+        <option value="certificates">Certificates</option>
+      </select>
+      <select id="action-filter" class="form-control" style="width:auto;">
+        <option value="">All Actions</option>
+        <option value="INSERT">Added</option>
+        <option value="UPDATE">Edited</option>
+        <option value="DELETE">Deleted</option>
+      </select>
+      <input type="date" id="from-date" class="form-control" style="width:auto;" />
+      <input type="date" id="to-date" class="form-control" style="width:auto;" />
+    </div>
+  </div>
+
+  <!-- AUDIT TABLE -->
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date & Time</th>
+            <th>Action</th>
+            <th>Table</th>
+            <th>Done By</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody id="audit-table">
+          <tr><td colspan="5" class="empty-msg">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div id="load-more-wrap" style="text-align:center;padding:16px;display:none;">
+      <button class="btn btn-outline" id="load-more-btn">Load More</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="modal-overlay" id="detail-modal">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-header">
+      <div class="modal-title">Audit Detail</div>
+      <button class="modal-close" id="detail-modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="detail-content"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="detail-close-btn">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/audit.js"></script>
+<script>
+  document.getElementById('hamburger').addEventListener('click', () => {
+    document.getElementById('nav-menu').classList.toggle('open');
+  });
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js');
+  }
+</script>
+
+</body>
+</html>
