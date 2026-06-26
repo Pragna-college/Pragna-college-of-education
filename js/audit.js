@@ -33,11 +33,11 @@ async function loadAuditLogs() {
 
 // Render logs with filters
 function renderLogs() {
-  const search    = document.getElementById('search-input').value.toLowerCase();
-  const table     = document.getElementById('table-filter').value;
-  const action    = document.getElementById('action-filter').value;
-  const fromDate  = document.getElementById('from-date').value;
-  const toDate    = document.getElementById('to-date').value;
+  const search   = document.getElementById('search-input').value.toLowerCase();
+  const table    = document.getElementById('table-filter').value;
+  const action   = document.getElementById('action-filter').value;
+  const fromDate = document.getElementById('from-date').value;
+  const toDate   = document.getElementById('to-date').value;
 
   let filtered = allLogs.filter((log) => {
     const matchSearch = !search ||
@@ -64,9 +64,13 @@ function renderLogs() {
 
   tbody.innerHTML = paginated.map((log) => {
     const actionBadge = {
-      INSERT: '<span class="badge badge-success">Added</span>',
-      UPDATE: '<span class="badge badge-warning">Edited</span>',
-      DELETE: '<span class="badge badge-danger">Deleted</span>',
+      INSERT:      '<span class="badge badge-success">Added</span>',
+      UPDATE:      '<span class="badge badge-warning">Edited</span>',
+      DELETE:      '<span class="badge badge-danger">Deleted</span>',
+      NAME_CHANGE: '<span class="badge badge-warning">Name Changed</span>',
+      FEE_CHANGE:  '<span class="badge badge-warning">Fee Changed</span>',
+      TC_ISSUED:   '<span class="badge badge-muted">TC Issued</span>',
+      TC_UNDONE:   '<span class="badge badge-info">TC Undone</span>',
     }[log.action] || `<span class="badge badge-muted">${log.action}</span>`;
 
     const tableLabel = {
@@ -98,7 +102,6 @@ function renderLogs() {
     `;
   }).join('');
 
-  // Load more button
   const loadMoreWrap = document.getElementById('load-more-wrap');
   if (filtered.length > PAGE_SIZE * currentPage) {
     loadMoreWrap.style.display = 'block';
@@ -109,24 +112,31 @@ function renderLogs() {
 
 // Get short summary of what changed
 function getLogSummary(log) {
-  if (log.action === 'INSERT' && log.new_data) {
-    const d = log.new_data;
-    if (log.table_name === 'students')     return `Added student: ${d.name || ''} (${d.roll_no || ''})`;
-    if (log.table_name === 'fee_payments') return `Payment of ₹${d.amount || ''} recorded`;
-    if (log.table_name === 'certificates') return `${d.type || ''} certificate added`;
+  const n = log.new_data || {};
+  const o = log.old_data || {};
+
+  if (log.table_name === 'students') {
+    if (log.action === 'INSERT')      return `Added student: ${n.name || ''} (${n.roll_no || ''})`;
+    if (log.action === 'UPDATE')      return `Updated student: ${n.name || ''}`;
+    if (log.action === 'NAME_CHANGE') return `Name changed: ${o.name || '?'} → ${n.name || '?'}`;
+    if (log.action === 'FEE_CHANGE')  return `Fee changed for ${n.name || ''}: ₹${o.net_payable ?? '?'} → ₹${n.net_payable ?? '?'}`;
+    if (log.action === 'TC_ISSUED')   return `TC issued to: ${n.name || ''} (${n.roll_no || ''})`;
+    if (log.action === 'TC_UNDONE')   return `TC undone for: ${n.name || ''} (${n.roll_no || ''})`;
+    if (log.action === 'DELETE')      return `Deleted student: ${o.name || ''} (${o.roll_no || ''})`;
   }
-  if (log.action === 'UPDATE' && log.new_data) {
-    const d = log.new_data;
-    if (log.table_name === 'students')     return `Updated student: ${d.name || ''}`;
-    if (log.table_name === 'fee_payments') return `Payment updated: ₹${d.amount || ''}`;
-    if (log.table_name === 'certificates') return `${d.type || ''} certificate updated`;
+
+  if (log.table_name === 'fee_payments') {
+    if (log.action === 'INSERT') return `Payment of ₹${n.amount || ''} recorded`;
+    if (log.action === 'UPDATE') return `Payment updated: ₹${n.amount || ''}`;
+    if (log.action === 'DELETE') return `Payment of ₹${o.amount || ''} deleted`;
   }
-  if (log.action === 'DELETE' && log.old_data) {
-    const d = log.old_data;
-    if (log.table_name === 'students')     return `Deleted student: ${d.name || ''} (${d.roll_no || ''})`;
-    if (log.table_name === 'fee_payments') return `Payment of ₹${d.amount || ''} deleted`;
-    if (log.table_name === 'certificates') return `${d.type || ''} certificate deleted`;
+
+  if (log.table_name === 'certificates') {
+    if (log.action === 'INSERT') return `${n.type || ''} certificate added`;
+    if (log.action === 'UPDATE') return `${n.type || ''} certificate updated`;
+    if (log.action === 'DELETE') return `${o.type || ''} certificate deleted`;
   }
+
   return '—';
 }
 
@@ -200,7 +210,6 @@ function setupEventListeners() {
     renderLogs();
   });
 
-  // Filters
   document.getElementById('search-input').addEventListener('input', debounce(renderLogs));
   document.getElementById('table-filter').addEventListener('change', renderLogs);
   document.getElementById('action-filter').addEventListener('change', renderLogs);
