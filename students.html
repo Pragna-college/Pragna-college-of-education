@@ -33,7 +33,10 @@
 
   <div class="page-header">
     <h1 class="page-title">Students</h1>
-    <div class="flex gap-1 flex-wrap">   <button class="btn btn-success" id="upload-excel-btn">📤 Upload Excel</button>   <button class="btn btn-primary" id="add-student-btn">+ Add Student</button> </div>
+    <div class="flex gap-1 flex-wrap">
+      <button class="btn btn-success" id="upload-excel-btn">📤 Upload Excel</button>
+      <button class="btn btn-primary" id="add-student-btn">+ Add Student</button>
+    </div>
   </div>
 
   <!-- FILTERS -->
@@ -43,9 +46,15 @@
       <select id="batch-filter" class="form-control" style="width:auto;">
         <option value="">All Batches</option>
       </select>
-     <select id="course-filter" class="form-control" style="width:auto;">
-  <option value="">All Courses</option>
-</select>
+      <select id="course-filter" class="form-control" style="width:auto;">
+        <option value="">All Courses</option>
+      </select>
+      <select id="status-filter" class="form-control" style="width:auto;">
+        <option value="">All Status</option>
+        <option value="due">Fee Due</option>
+        <option value="clear">Fee Clear</option>
+        <option value="tc">TC Taken</option>
+      </select>
     </div>
   </div>
 
@@ -164,32 +173,57 @@
   </div>
 </div>
 
-<!-- DELETE CONFIRM MODAL -->
-<div class="modal-overlay" id="delete-modal">
-  <div class="modal" style="max-width:400px;">
+<!-- PASSWORD MODAL -->
+<div class="modal-overlay" id="pw-modal">
+  <div class="modal" style="max-width:380px;">
     <div class="modal-header">
-      <div class="modal-title">Delete Student</div>
-      <button class="modal-close" id="delete-modal-close">✕</button>
+      <div class="modal-title">🔒 Admin Verification</div>
+      <button class="modal-close" id="pw-modal-close">✕</button>
     </div>
     <div class="modal-body">
-      <p>Are you sure you want to delete <strong id="delete-student-name"></strong>?</p>
-      <p class="text-muted mt-1" style="font-size:0.85rem;">This will also delete all their payment records and certificates.</p>
+      <p class="text-muted" style="margin-bottom:14px;">Enter the admin password to edit this student's details.</p>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="pw-input" class="form-control" placeholder="Enter password..." />
+      </div>
+      <p id="pw-error" style="color:var(--danger);font-size:0.85rem;margin-top:6px;min-height:20px;"></p>
+      <input type="hidden" id="pw-student-id" />
     </div>
     <div class="modal-footer">
-      <button class="btn btn-outline" id="delete-cancel-btn">Cancel</button>
-      <button class="btn btn-danger" id="confirm-delete-btn">Delete</button>
+      <button class="btn btn-outline" id="pw-cancel-btn">Cancel</button>
+      <button class="btn btn-primary" id="pw-submit-btn">🔓 Unlock &amp; Edit</button>
     </div>
   </div>
 </div>
 
- <!-- EXCEL UPLOAD MODAL -->
+<!-- TC CONFIRM MODAL -->
+<div class="modal-overlay" id="tc-modal">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <div class="modal-title">📋 Mark TC Taken</div>
+      <button class="modal-close" id="tc-modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <p>Are you sure <strong id="tc-student-name"></strong> has taken their Transfer Certificate?</p>
+      <p class="text-muted mt-1" style="font-size:0.85rem;">
+        The student will be greyed out in the list to show they have left. You can undo this anytime using the ↩️ button.
+      </p>
+      <input type="hidden" id="tc-student-id" />
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="tc-cancel-btn">Cancel</button>
+      <button class="btn btn-warning" id="confirm-tc-btn">Yes, Mark TC</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXCEL UPLOAD MODAL -->
 <div class="modal-overlay" id="excel-modal">
   <div class="modal" style="max-width:760px;">
     <div class="modal-header">
       <div class="modal-title">Upload Students Excel</div>
       <button class="modal-close" id="excel-modal-close">✕</button>
     </div>
-
     <div class="modal-body">
       <div class="form-group">
         <label>Select Excel File</label>
@@ -198,16 +232,15 @@
           Required columns: Hall ticket no, Name, College fee, Dev Fee, Add Fee, Fee 1-Date 1 up to Fee 10-Date 10
         </div>
       </div>
-
       <div id="excel-preview" style="margin-top:16px;"></div>
     </div>
-
     <div class="modal-footer">
       <button class="btn btn-outline" id="excel-cancel-btn">Cancel</button>
       <button class="btn btn-primary" id="import-excel-btn" disabled>Import Data</button>
     </div>
   </div>
-</div> 
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script src="js/config.js"></script>
