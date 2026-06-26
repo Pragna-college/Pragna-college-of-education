@@ -3,7 +3,9 @@
 let allStudents = [];
 let allPayments = [];
 let batches = [];
-let deleteStudentId = null;
+
+// Admin password for protected actions (edit name / total fee)
+const ADMIN_PASSWORD = 'Pragna@2024';
 
 function openStudentDetails(studentId) {
   window.location.href = `/student-view?id=${encodeURIComponent(studentId)}`;
@@ -57,11 +59,12 @@ async function loadStudents() {
     .select('student_id, amount');
 
   allStudents = students || [];
-allPayments = payments || [];
+  allPayments = payments || [];
 
-loadCourseFilter();
-renderStudents();
+  loadCourseFilter();
+  renderStudents();
 }
+
 function loadCourseFilter() {
   const select = document.getElementById('course-filter');
   if (!select) return;
@@ -70,9 +73,7 @@ function loadCourseFilter() {
   select.innerHTML = '<option value="">All Courses</option>';
 
   const courses = [...new Set(
-    allStudents
-      .map(s => s.course)
-      .filter(Boolean)
+    allStudents.map(s => s.course).filter(Boolean)
   )];
 
   courses.forEach(course => {
@@ -84,17 +85,19 @@ function loadCourseFilter() {
 
   select.value = currentValue;
 }
+
 // Render students table
 function renderStudents() {
   const searchInput = document.getElementById('search-input');
-const batchFilter = document.getElementById('batch-filter');
-const statusFilter = document.getElementById('status-filter');
-const courseFilter = document.getElementById('course-filter');
+  const batchFilter = document.getElementById('batch-filter');
+  const statusFilter = document.getElementById('status-filter');
+  const courseFilter = document.getElementById('course-filter');
 
-const search = searchInput ? searchInput.value.toLowerCase() : '';
-const batchId = batchFilter ? batchFilter.value : '';
-const status = statusFilter ? statusFilter.value : '';
-const course = courseFilter ? courseFilter.value : '';
+  const search = searchInput ? searchInput.value.toLowerCase() : '';
+  const batchId = batchFilter ? batchFilter.value : '';
+  const status = statusFilter ? statusFilter.value : '';
+  const course = courseFilter ? courseFilter.value : '';
+
   // Build paid map
   const paidMap = {};
   allPayments.forEach((p) => {
@@ -109,12 +112,13 @@ const course = courseFilter ? courseFilter.value : '';
     const paid        = paidMap[s.id] || 0;
     const balance     = (s.net_payable || 0) - paid;
     const matchStatus = !status ||
-  (status === 'due'   && balance > 0) ||
-  (status === 'clear' && balance <= 0);
+      (status === 'due'   && balance > 0) ||
+      (status === 'clear' && balance <= 0) ||
+      (status === 'tc'    && s.took_tc === true);
 
-const matchCourse = !course || s.course === course;
+    const matchCourse = !course || s.course === course;
 
-return matchSearch && matchBatch && matchStatus && matchCourse;
+    return matchSearch && matchBatch && matchStatus && matchCourse;
   });
 
   const tbody = document.getElementById('students-table');
@@ -132,11 +136,18 @@ return matchSearch && matchBatch && matchStatus && matchCourse;
       : 0;
     const barClass = percent >= 75 ? '' : percent >= 40 ? 'warning' : 'danger';
 
+    // TC styling — grey out the entire row
+    const tcClass = s.took_tc ? 'student-row-tc' : '';
+    const tcBadge = s.took_tc
+      ? `<span class="badge badge-tc" title="TC Taken">TC</span>`
+      : '';
+
     return `
-      <tr>
+      <tr class="${tcClass}">
         <td><strong>${s.roll_no}</strong></td>
         <td>
           <a href="#" onclick="openStudentDetails('${s.id}'); return false;">${s.name}</a>
+          ${tcBadge}
           ${s.notes ? `<br><small class="text-muted">${s.notes}</small>` : ''}
         </td>
         <td>${s.phone || '—'}</td>
@@ -154,15 +165,71 @@ return matchSearch && matchBatch && matchStatus && matchCourse;
         </td>
         <td>
           <div class="flex gap-1">
-            <button class="btn btn-outline btn-sm" onclick="openEdit('${s.id}')">✏️</button>
-            <button class="btn btn-danger btn-sm" onclick="openDelete('${s.id}', '${s.name.replace(/'/g, "\\'")}')">🗑️</button>
-            <a href="payments.html?student=${s.id}" class="btn btn-success btn-sm">💰</a>
+            <button class="btn btn-outline btn-sm" onclick="openEdit('${s.id}')" title="Edit student">✏️</button>
+            ${!s.took_tc
+              ? `<button class="btn btn-warning btn-sm" onclick="openTcConfirm('${s.id}', '${s.name.replace(/'/g, "\\'")}') " title="Mark TC taken">📋 TC</button>`
+              : `<button class="btn btn-outline btn-sm tc-undo-btn" onclick="undoTc('${s.id}', '${s.name.replace(/'/g, "\\'")}') " title="Undo TC">↩️</button>`
+            }
+            <a href="payments.html?student=${s.id}" class="btn btn-success btn-sm" title="Payments">💰</a>
             ${s.phone ? `<a href="${whatsappLink(s.phone, `Hello ${s.name}, your current fee balance is ${formatCurrency(balance)}.`)}" target="_blank" class="btn btn-warning btn-sm">💬</a>` : ''}
           </div>
         </td>
       </tr>
     `;
   }).join('');
+}
+
+// ─── OPEN EDIT MODAL ──────────────────────────────────────────────────────────
+// Asks for admin password before opening
+function openEdit(id) {
+  const student = allStudents.find((s) => s.id === id);
+  if (!student) return;
+
+  // Show password prompt modal
+  document.getElementById('pw-student-id').value = id;
+  document.getElementById('pw-input').value = '';
+  document.getElementById('pw-error').textContent = '';
+  document.getElementById('pw-modal').classList.add('open');
+  setTimeout(() => document.getElementById('pw-input').focus(), 100);
+}
+
+function closePwModal() {
+  document.getElementById('pw-modal').classList.remove('open');
+}
+
+function submitPasswordAndEdit() {
+  const entered = document.getElementById('pw-input').value;
+  const id      = document.getElementById('pw-student-id').value;
+
+  if (entered !== ADMIN_PASSWORD) {
+    document.getElementById('pw-error').textContent = '❌ Incorrect password. Please try again.';
+    document.getElementById('pw-input').value = '';
+    document.getElementById('pw-input').focus();
+    return;
+  }
+
+  closePwModal();
+  _openEditModal(id);
+}
+
+function _openEditModal(id) {
+  const student = allStudents.find((s) => s.id === id);
+  if (!student) return;
+
+  document.getElementById('modal-title').textContent       = 'Edit Student';
+  document.getElementById('student-id').value              = student.id;
+  document.getElementById('roll-no').value                 = student.roll_no;
+  document.getElementById('student-name').value            = student.name;
+  document.getElementById('student-phone').value           = student.phone || '';
+  document.getElementById('batch-id').value                = student.batch_id || '';
+  document.getElementById('college-fee').value             = student.college_fee || '';
+  document.getElementById('attendance-fee').value          = student.attendance_fee || '';
+  document.getElementById('development-fee').value         = student.development_fee || '';
+  document.getElementById('concession').value              = student.concession || '';
+  document.getElementById('scholarship-amount').value      = student.scholarship_amount || '';
+  document.getElementById('student-notes').value           = student.notes || '';
+  updateCalc();
+  document.getElementById('student-modal').classList.add('open');
 }
 
 // Open add modal
@@ -183,27 +250,6 @@ function openAdd() {
   document.getElementById('student-modal').classList.add('open');
 }
 
-// Open edit modal
-async function openEdit(id) {
-  const student = allStudents.find((s) => s.id === id);
-  if (!student) return;
-
-  document.getElementById('modal-title').textContent       = 'Edit Student';
-  document.getElementById('student-id').value              = student.id;
-  document.getElementById('roll-no').value                 = student.roll_no;
-  document.getElementById('student-name').value            = student.name;
-  document.getElementById('student-phone').value           = student.phone || '';
-  document.getElementById('batch-id').value                = student.batch_id || '';
-  document.getElementById('college-fee').value             = student.college_fee || '';
-  document.getElementById('attendance-fee').value          = student.attendance_fee || '';
-  document.getElementById('development-fee').value         = student.development_fee || '';
-  document.getElementById('concession').value              = student.concession || '';
-  document.getElementById('scholarship-amount').value      = student.scholarship_amount || '';
-  document.getElementById('student-notes').value           = student.notes || '';
-  updateCalc();
-  document.getElementById('student-modal').classList.add('open');
-}
-
 // Close modal
 function closeModal() {
   document.getElementById('student-modal').classList.remove('open');
@@ -219,12 +265,12 @@ function updateCalc() {
   const total = college + attendance + development;
   const net   = total - concession;
 
-  document.getElementById('calc-total').textContent     = formatCurrency(total);
+  document.getElementById('calc-total').textContent      = formatCurrency(total);
   document.getElementById('calc-concession').textContent = formatCurrency(concession);
-  document.getElementById('calc-net').textContent       = formatCurrency(net);
+  document.getElementById('calc-net').textContent        = formatCurrency(net);
 }
 
-// Save student
+// Save student — also detects name / total fee changes for special audit log
 async function saveStudent() {
   const id         = document.getElementById('student-id').value;
   const rollNo     = document.getElementById('roll-no').value.trim();
@@ -242,6 +288,9 @@ async function saveStudent() {
     showToast('Please fill Roll No, Name and Batch.', 'danger');
     return;
   }
+
+  const total = collegeFee + attendanceFee + developmentFee;
+  const net   = total - concession;
 
   const payload = {
     roll_no: rollNo,
@@ -262,14 +311,34 @@ async function saveStudent() {
 
   try {
     if (id) {
-      // Edit
+      // Edit — check for sensitive field changes
       const old = allStudents.find((s) => s.id === id);
       const { error } = await supabase.from('students').update(payload).eq('id', id);
       if (error) throw error;
+
+      // Standard audit
       await writeAudit('students', 'UPDATE', old, { ...old, ...payload });
+
+      // Extra audit entry if name changed
+      if (old && old.name !== name) {
+        await writeAudit('students', 'NAME_CHANGE', 
+          { name: old.name, roll_no: old.roll_no },
+          { name: name,     roll_no: rollNo }
+        );
+      }
+
+      // Extra audit entry if total fee changed
+      const oldNet = (old?.net_payable || 0);
+      if (old && oldNet !== net) {
+        await writeAudit('students', 'FEE_CHANGE',
+          { net_payable: oldNet,   roll_no: old.roll_no, name: old.name },
+          { net_payable: net,      roll_no: rollNo,      name }
+        );
+      }
+
       showToast('Student updated successfully!');
     } else {
-      // Add
+      // Add new student
       const { error } = await supabase.from('students').insert(payload);
       if (error) throw error;
       await writeAudit('students', 'INSERT', null, payload);
@@ -286,35 +355,69 @@ async function saveStudent() {
   }
 }
 
-// Open delete confirm
-function openDelete(id, name) {
-  deleteStudentId = id;
-  document.getElementById('delete-student-name').textContent = name;
-  document.getElementById('delete-modal').classList.add('open');
+// ─── TC CONFIRM ──────────────────────────────────────────────────────────────
+function openTcConfirm(id, name) {
+  document.getElementById('tc-student-id').value = id;
+  document.getElementById('tc-student-name').textContent = name;
+  document.getElementById('tc-modal').classList.add('open');
 }
 
-// Confirm delete
-async function confirmDelete() {
-  if (!deleteStudentId) return;
+function closeTcModal() {
+  document.getElementById('tc-modal').classList.remove('open');
+}
 
-  const btn = document.getElementById('confirm-delete-btn');
+async function confirmTc() {
+  const id = document.getElementById('tc-student-id').value;
+  if (!id) return;
+
+  const btn = document.getElementById('confirm-tc-btn');
   btn.disabled = true;
-  btn.textContent = 'Deleting...';
+  btn.textContent = 'Saving...';
 
   try {
-    const old = allStudents.find((s) => s.id === deleteStudentId);
-    const { error } = await supabase.from('students').delete().eq('id', deleteStudentId);
+    const student = allStudents.find(s => s.id === id);
+    const { error } = await supabase
+      .from('students')
+      .update({ took_tc: true, tc_date: new Date().toISOString() })
+      .eq('id', id);
     if (error) throw error;
-    await writeAudit('students', 'DELETE', old, null);
-    showToast('Student deleted.');
-    document.getElementById('delete-modal').classList.remove('open');
-    deleteStudentId = null;
+
+    await writeAudit('students', 'TC_ISSUED',
+      { took_tc: false, name: student?.name, roll_no: student?.roll_no },
+      { took_tc: true,  name: student?.name, roll_no: student?.roll_no, tc_date: new Date().toISOString() }
+    );
+
+    showToast(`TC marked for ${student?.name || 'student'}.`);
+    closeTcModal();
     await loadStudents();
   } catch (err) {
-    showToast(err.message || 'Failed to delete student.', 'danger');
+    showToast(err.message || 'Failed to mark TC.', 'danger');
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Delete';
+    btn.textContent = 'Yes, Mark TC';
+  }
+}
+
+async function undoTc(id, name) {
+  if (!confirm(`Remove TC status for ${name}?`)) return;
+
+  try {
+    const student = allStudents.find(s => s.id === id);
+    const { error } = await supabase
+      .from('students')
+      .update({ took_tc: false, tc_date: null })
+      .eq('id', id);
+    if (error) throw error;
+
+    await writeAudit('students', 'TC_UNDONE',
+      { took_tc: true,  name: student?.name, roll_no: student?.roll_no },
+      { took_tc: false, name: student?.name, roll_no: student?.roll_no }
+    );
+
+    showToast(`TC status removed for ${name}.`);
+    await loadStudents();
+  } catch (err) {
+    showToast(err.message || 'Failed to undo TC.', 'danger');
   }
 }
 
@@ -324,53 +427,48 @@ function setupEventListeners() {
   document.getElementById('modal-close').addEventListener('click', closeModal);
   document.getElementById('cancel-btn').addEventListener('click', closeModal);
   document.getElementById('save-student-btn').addEventListener('click', saveStudent);
-  document.getElementById('confirm-delete-btn').addEventListener('click', confirmDelete);
-  document.getElementById('delete-modal-close').addEventListener('click', () => {
-    document.getElementById('delete-modal').classList.remove('open');
+
+  // Password modal
+  document.getElementById('pw-modal-close').addEventListener('click', closePwModal);
+  document.getElementById('pw-cancel-btn').addEventListener('click', closePwModal);
+  document.getElementById('pw-submit-btn').addEventListener('click', submitPasswordAndEdit);
+  document.getElementById('pw-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') submitPasswordAndEdit();
   });
-  document.getElementById('delete-cancel-btn').addEventListener('click', () => {
-    document.getElementById('delete-modal').classList.remove('open');
-  });
+
+  // TC modal
+  document.getElementById('tc-modal-close').addEventListener('click', closeTcModal);
+  document.getElementById('tc-cancel-btn').addEventListener('click', closeTcModal);
+  document.getElementById('confirm-tc-btn').addEventListener('click', confirmTc);
 
   // Search and filters
   const searchInput = document.getElementById('search-input');
-const batchFilter = document.getElementById('batch-filter');
-const statusFilter = document.getElementById('status-filter');
-const courseFilter = document.getElementById('course-filter');
+  const batchFilter = document.getElementById('batch-filter');
+  const statusFilter = document.getElementById('status-filter');
+  const courseFilter = document.getElementById('course-filter');
 
-if (searchInput) {
-  searchInput.addEventListener('input', debounce(renderStudents));
-}
-
-if (batchFilter) {
-  batchFilter.addEventListener('change', renderStudents);
-}
-
-if (statusFilter) {
-  statusFilter.addEventListener('change', renderStudents);
-}
-
-if (courseFilter) {
-  courseFilter.addEventListener('change', renderStudents);
-}
+  if (searchInput) searchInput.addEventListener('input', debounce(renderStudents));
+  if (batchFilter) batchFilter.addEventListener('change', renderStudents);
+  if (statusFilter) statusFilter.addEventListener('change', renderStudents);
+  if (courseFilter) courseFilter.addEventListener('change', renderStudents);
 
   // Fee calc preview
   ['college-fee', 'attendance-fee', 'development-fee', 'concession'].forEach((id) => {
     document.getElementById(id).addEventListener('input', updateCalc);
   });
+
   // Excel upload
   document.getElementById('upload-excel-btn').addEventListener('click', openExcelModal);
   document.getElementById('excel-modal-close').addEventListener('click', closeExcelModal);
   document.getElementById('excel-cancel-btn').addEventListener('click', closeExcelModal);
   document.getElementById('excel-file').addEventListener('change', handleExcelFile);
   document.getElementById('import-excel-btn').addEventListener('click', importExcelData);
-  }
+}
 
 // ================= EXCEL UPLOAD =================
 
 let excelRows = [];
 
-// Open Excel modal
 function openExcelModal() {
   excelRows = [];
   document.getElementById('excel-file').value = '';
@@ -379,33 +477,22 @@ function openExcelModal() {
   document.getElementById('excel-modal').classList.add('open');
 }
 
-// Close Excel modal
 function closeExcelModal() {
   document.getElementById('excel-modal').classList.remove('open');
 }
 
-// Convert Excel date to YYYY-MM-DD
 function parseExcelDate(value) {
   if (!value) return null;
-
   if (typeof value === 'number') {
     const date = XLSX.SSF.parse_date_code(value);
     if (!date) return null;
-    const yyyy = date.y;
-    const mm = String(date.m).padStart(2, '0');
-    const dd = String(date.d).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
+    return `${date.y}-${String(date.m).padStart(2,'0')}-${String(date.d).padStart(2,'0')}`;
   }
-
   const d = new Date(value);
-  if (!isNaN(d)) {
-    return d.toISOString().split('T')[0];
-  }
-
+  if (!isNaN(d)) return d.toISOString().split('T')[0];
   return null;
 }
 
-// Convert amount safely
 function toNumber(value) {
   if (value === null || value === undefined || value === '') return 0;
   const cleaned = String(value).replace(/,/g, '').trim();
@@ -413,21 +500,11 @@ function toNumber(value) {
   return isNaN(num) ? 0 : num;
 }
 
-// Read Excel file
-// Convert Yes/No values safely
 function normalizeYesNo(value) {
   if (!value) return 'No';
-
   const v = String(value).trim().toLowerCase();
-
-  if (v === 'yes' || v === 'y' || v === 'submitted' || v === '1') {
-    return 'Yes';
-  }
-
-  if (v === 'no' || v === 'n' || v === 'not submitted' || v === '0') {
-    return 'No';
-  }
-
+  if (v === 'yes' || v === 'y' || v === 'submitted' || v === '1') return 'Yes';
+  if (v === 'no'  || v === 'n' || v === 'not submitted' || v === '0') return 'No';
   return String(value).trim();
 }
 
@@ -436,7 +513,6 @@ function handleExcelFile(e) {
   if (!file) return;
 
   const reader = new FileReader();
-
   reader.onload = function(event) {
     const data = new Uint8Array(event.target.result);
     const workbook = XLSX.read(data, { type: 'array' });
@@ -446,17 +522,14 @@ function handleExcelFile(e) {
     excelRows = rows.map((row, index) => {
       const rollNo = String(row['Hall ticket no'] || '').trim();
       const name = String(row['Name'] || '').trim();
-
       const collegeFee = toNumber(row['College fee']);
       const devFee = toNumber(row['Dev Fee']);
       const addFee = toNumber(row['Add Fee']);
-
       const payments = [];
 
       for (let i = 1; i <= 10; i++) {
         const amount = toNumber(row[`Fee ${i}`]);
         const date = parseExcelDate(row[`Date ${i}`]);
-
         if (amount > 0) {
           payments.push({
             amount,
@@ -495,11 +568,9 @@ function handleExcelFile(e) {
 
     renderExcelPreview();
   };
-
   reader.readAsArrayBuffer(file);
 }
 
-// Preview Excel rows before import
 function renderExcelPreview() {
   const preview = document.getElementById('excel-preview');
 
@@ -509,7 +580,7 @@ function renderExcelPreview() {
     return;
   }
 
-  const validCount = excelRows.filter(r => r.valid).length;
+  const validCount   = excelRows.filter(r => r.valid).length;
   const invalidCount = excelRows.length - validCount;
 
   preview.innerHTML = `
@@ -532,14 +603,8 @@ function renderExcelPreview() {
       <table>
         <thead>
           <tr>
-            <th>Row</th>
-            <th>Hall Ticket</th>
-            <th>Name</th>
-            <th>Course</th>
-            <th>Total Fee</th>
-            <th>Payments</th>
-            <th>Docs</th>
-            <th>Status</th>
+            <th>Row</th><th>Hall Ticket</th><th>Name</th><th>Course</th>
+            <th>Total Fee</th><th>Payments</th><th>Docs</th><th>Status</th>
           </tr>
         </thead>
         <tbody>
@@ -553,142 +618,86 @@ function renderExcelPreview() {
                 <td>${r.course || '—'}</td>
                 <td>${formatCurrency(totalFee)}</td>
                 <td>${r.payments.length}</td>
-                <td>
-                  SSC: ${r.ssc || 'No'}<br>
-                  Inter: ${r.inter || 'No'}<br>
-                  Degree: ${r.degree || 'No'}<br>
-                  Memos: ${r.memos || 'No'}<br>
-                  TC: ${r.tc || 'No'}
-                </td>
-                <td>
-                  ${
-                    r.valid
-                      ? '<span class="badge badge-success">Ready</span>'
-                      : '<span class="badge badge-danger">Missing hall ticket/name</span>'
-                  }
-                </td>
+                <td>SSC: ${r.ssc}<br>Inter: ${r.inter}<br>Degree: ${r.degree}<br>Memos: ${r.memos}<br>TC: ${r.tc}</td>
+                <td>${r.valid
+                  ? '<span class="badge badge-success">Ready</span>'
+                  : '<span class="badge badge-danger">Missing hall ticket/name</span>'
+                }</td>
               </tr>
             `;
           }).join('')}
         </tbody>
       </table>
     </div>
-
     ${excelRows.length > 30 ? `<p class="text-muted mt-1">Showing first 30 rows only.</p>` : ''}
   `;
 
   document.getElementById('import-excel-btn').disabled = validCount === 0;
 }
 
-// Import Excel rows into Supabase
 async function importExcelData() {
   const validRows = excelRows.filter(r => r.valid);
-
-  if (!validRows.length) {
-    showToast('No valid rows to import.', 'danger');
-    return;
-  }
+  if (!validRows.length) { showToast('No valid rows to import.', 'danger'); return; }
 
   const batchId = batches[0]?.id;
-
-  if (!batchId) {
-    showToast('No batch found. Please create batch first.', 'danger');
-    return;
-  }
+  if (!batchId) { showToast('No batch found. Please create batch first.', 'danger'); return; }
 
   const btn = document.getElementById('import-excel-btn');
   btn.disabled = true;
   btn.textContent = 'Importing...';
 
-  let successCount = 0;
-  let paymentCount = 0;
-  let failedRows = [];
+  let successCount = 0, paymentCount = 0, failedRows = [];
 
   try {
     const user = await getCurrentUser();
 
     for (const row of validRows) {
       const studentPayload = {
-        roll_no: row.roll_no,
-        name: row.name,
-        father_name: row.father_name || null,
-        quota: row.quota || null,
-        course: row.course || null,
-        ssc: row.ssc || null,
-        inter: row.inter || null,
-        degree: row.degree || null,
-        memos: row.memos || null,
-        tc: row.tc || null,
+        roll_no: row.roll_no, name: row.name,
+        father_name: row.father_name || null, quota: row.quota || null,
+        course: row.course || null, ssc: row.ssc || null,
+        inter: row.inter || null, degree: row.degree || null,
+        memos: row.memos || null, tc: row.tc || null,
         batch_id: batchId,
-        college_fee: row.college_fee,
-        attendance_fee: row.attendance_fee,
-        development_fee: row.development_fee,
-        saree_amount: row.saree_amount,
-        id_card: row.id_card,
-        concession: row.concession,
-        scholarship_amount: row.scholarship_amount,
-        notes: row.notes || null,
+        college_fee: row.college_fee, attendance_fee: row.attendance_fee,
+        development_fee: row.development_fee, saree_amount: row.saree_amount,
+        id_card: row.id_card, concession: row.concession,
+        scholarship_amount: row.scholarship_amount, notes: row.notes || null,
       };
 
       const { data: studentData, error: studentError } = await supabase
-        .from('students')
-        .insert(studentPayload)
-        .select()
-        .single();
+        .from('students').insert(studentPayload).select().single();
 
       if (studentError) {
-        failedRows.push({
-          row: row.row_no,
-          name: row.name,
-          reason: studentError.message,
-        });
+        failedRows.push({ row: row.row_no, name: row.name, reason: studentError.message });
         continue;
       }
 
       successCount++;
-
-      await writeAudit('students', 'INSERT', null, {
-        ...studentPayload,
-        imported_from: 'excel',
-      });
+      await writeAudit('students', 'INSERT', null, { ...studentPayload, imported_from: 'excel' });
 
       if (row.payments.length > 0) {
         const paymentPayload = row.payments.map(p => ({
-          student_id: studentData.id,
-          amount: p.amount,
-          mode: p.mode,
-          payment_date: p.payment_date,
-          receipt_no: p.receipt_no,
-          notes: p.notes,
+          student_id: studentData.id, amount: p.amount,
+          mode: p.mode, payment_date: p.payment_date,
+          receipt_no: p.receipt_no, notes: p.notes,
           recorded_by: user?.email || 'excel import',
         }));
 
-        const { error: paymentError } = await supabase
-          .from('fee_payments')
-          .insert(paymentPayload);
-
+        const { error: paymentError } = await supabase.from('fee_payments').insert(paymentPayload);
         if (!paymentError) {
           paymentCount += paymentPayload.length;
-
           await writeAudit('fee_payments', 'INSERT', null, {
-            student: row.name,
-            roll_no: row.roll_no,
-            payment_count: paymentPayload.length,
-            imported_from: 'excel',
+            student: row.name, roll_no: row.roll_no,
+            payment_count: paymentPayload.length, imported_from: 'excel',
           });
         }
       }
     }
 
     let message = `${successCount} students imported. ${paymentCount} payments added.`;
-
-    if (failedRows.length > 0) {
-      message += ` ${failedRows.length} rows failed.`;
-      console.warn('Failed rows:', failedRows);
-    }
-
+    if (failedRows.length > 0) message += ` ${failedRows.length} rows failed.`;
     showToast(message, failedRows.length ? 'warning' : 'success');
-
     closeExcelModal();
     await loadStudents();
 
@@ -699,5 +708,6 @@ async function importExcelData() {
     btn.textContent = 'Import Data';
   }
 }
+
 // Init
 initStudents();
