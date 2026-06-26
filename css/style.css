@@ -567,3 +567,34 @@ tbody td {
 .flex-wrap { flex-wrap: wrap; }
 .align-center { align-items: center; }
 .justify-between { justify-content: space-between; }
+
+/* ===== TC TAKEN — greyed out row ===== */
+.student-row-tc {
+  opacity: 0.42;
+  background: #f5f5f5 !important;
+}
+.student-row-tc td {
+  color: #999 !important;
+}
+.student-row-tc a {
+  color: #aaa !important;
+  pointer-events: none;
+}
+
+/* TC badge next to student name */
+.badge-tc {
+  background: #6c757d;
+  color: white;
+  font-size: 0.68rem;
+  padding: 2px 7px;
+  border-radius: 10px;
+  margin-left: 6px;
+  vertical-align: middle;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+/* Undo TC button */
+.tc-undo-btn {
+  opacity: 0.7;
+}
