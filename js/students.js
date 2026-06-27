@@ -8,7 +8,7 @@ let batches = [];
 const ADMIN_PASSWORD = 'Pragna@2024';
 
 function openStudentDetails(studentId) {
-  window.location.href = `/student-view?id=${encodeURIComponent(studentId)}`;
+  window.location.href = `/student-view?id=${encodeURIComponent(studentId)}&from=staff`;
 }
 
 async function initStudents() {
