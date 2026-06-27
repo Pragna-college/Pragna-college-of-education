@@ -24,51 +24,74 @@
 <!-- PAGE -->
 <div class="page" style="max-width:800px;">
 
-  <!-- SEARCH SECTION -->
+  <!-- SEARCH SECTION (tabs + search + list) -->
   <div id="search-section">
-    <div style="text-align:center;padding:40px 0 24px;">
+
+    <div style="text-align:center;padding:32px 0 20px;">
       <div style="font-size:3rem;">🎓</div>
-      <h1 style="color:var(--primary);margin-bottom:8px;">Student Fee Details</h1>
-<p class="text-muted">Search by name or hall ticket number, or filter by course and batch</p>
+      <h1 style="color:var(--primary);margin-bottom:6px;">Student Fee Details</h1>
+      <p class="text-muted">View your fee status and payment history</p>
     </div>
 
-    <div class="card">
+    <!-- TABS -->
+    <div class="sv-tabs">
+      <button class="sv-tab-btn active" id="tab-btn-list" onclick="switchTab('list')">📋 All Students</button>
+      <button class="sv-tab-btn" id="tab-btn-search" onclick="switchTab('search')">🔍 Search</button>
+    </div>
+
+    <!-- TAB: ALL STUDENTS LIST -->
+    <div class="sv-tab-panel" id="tab-panel-list">
+      <div class="card" style="padding:12px 16px;margin-bottom:12px;">
+        <input
+          type="text"
+          id="list-search-input"
+          class="search-input"
+          placeholder="Filter by name or hall ticket..."
+          style="width:100%;box-sizing:border-box;"
+        />
+      </div>
+      <div id="all-students-list">
+        <div class="loading"><div class="spinner"></div><p>Loading students...</p></div>
+      </div>
+    </div>
+
+    <!-- TAB: SEARCH -->
+    <div class="sv-tab-panel" id="tab-panel-search" style="display:none;">
       <div class="card">
-  <div class="search-bar" style="margin-bottom:0;">
-    <input
-      type="text"
-      id="search-input"
-      class="search-input"
-      placeholder="Search by name or hall ticket number..."
-      style="flex:1;"
-    />
+        <div class="search-bar" style="margin-bottom:0;flex-wrap:wrap;gap:8px;">
+          <input
+            type="text"
+            id="search-input"
+            class="search-input"
+            placeholder="Search by name or hall ticket number..."
+            style="flex:1;min-width:180px;"
+          />
+          <select id="course-filter" class="form-control" style="width:auto;">
+            <option value="">All Courses</option>
+          </select>
+          <select id="batch-filter" class="form-control" style="width:auto;">
+            <option value="">All Batches</option>
+          </select>
+          <button class="btn btn-primary" id="search-btn">Search</button>
+        </div>
+      </div>
 
-    <select id="course-filter" class="form-control" style="width:auto;">
-      <option value="">All Courses</option>
-    </select>
+      <!-- Scholarship link -->
+      <div id="scholarship-wrap" style="display:none;text-align:center;margin-top:16px;">
+        <a id="scholarship-link" href="#" target="_blank" class="btn btn-warning">
+          🎓 Apply for Scholarship
+        </a>
+      </div>
 
-    <select id="batch-filter" class="form-control" style="width:auto;">
-      <option value="">All Batches</option>
-    </select>
-
-    <button class="btn btn-primary" id="search-btn">Search</button>
-  </div>
-</div>
-
-    <!-- SCHOLARSHIP LINK -->
-    <div id="scholarship-wrap" style="display:none;text-align:center;margin-top:16px;">
-      <a id="scholarship-link" href="#" target="_blank" class="btn btn-warning">
-        🎓 Apply for Scholarship
-      </a>
+      <!-- Search results -->
+      <div id="search-results" style="margin-top:20px;"></div>
     </div>
 
-  <!-- SEARCH RESULTS -->
-    <div id="search-results" style="margin-top:20px;"></div>
   </div>
-</div>
+  <!-- END SEARCH SECTION -->
 
-<!-- STUDENT DETAIL SECTION -->
-<div id="student-detail" style="display:none;">
+  <!-- STUDENT DETAIL SECTION -->
+  <div id="student-detail" style="display:none;">
 
     <div style="margin-bottom:16px;">
       <button class="btn btn-outline" id="back-btn">← Back</button>
@@ -179,12 +202,11 @@
       </div>
     </div>
 
-    <!-- CERTIFICATES -->
     <!-- SUBMITTED DOCUMENTS -->
-<div class="card">
-  <div class="card-title">Submitted Documents</div>
-  <div id="documents-list"></div>
-</div>
+    <div class="card">
+      <div class="card-title">Submitted Documents</div>
+      <div id="documents-list"></div>
+    </div>
 
     <!-- SCHOLARSHIP LINK -->
     <div id="scholarship-wrap-detail" style="display:none;text-align:center;margin:20px 0;">
@@ -194,6 +216,7 @@
     </div>
 
   </div>
+  <!-- END STUDENT DETAIL -->
 
 </div>
 
