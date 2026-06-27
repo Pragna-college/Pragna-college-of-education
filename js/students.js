@@ -649,7 +649,7 @@ async function importExcelData() {
   const batchMap = {};
   batches.forEach(b => { batchMap[b.label.toLowerCase().trim()] = b.id; });
   const defaultBatchId = batches[0]?.id;
-  if (!batchId) { showToast('No batch found. Please create batch first.', 'danger'); return; }
+  if (!batches.length) { showToast('No batches found. Please create batches first.', 'danger'); return; }
 
   const btn = document.getElementById('import-excel-btn');
   btn.disabled = true;
