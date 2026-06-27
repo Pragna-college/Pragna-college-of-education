@@ -150,7 +150,7 @@ function renderStudents() {
           ${tcBadge}
           ${s.notes ? `<br><small class="text-muted">${s.notes}</small>` : ''}
         </td>
-        <td>${s.phone || '—'}</td>
+        <td>${s.course ? `<span class="badge badge-muted">${s.course}</span>` : '—'}</td>
         <td><span class="badge badge-info">${s.batches?.label || '—'}</span></td>
         <td>${formatCurrency(s.net_payable)}</td>
         <td class="text-success"><strong>${formatCurrency(paid)}</strong></td>
@@ -221,6 +221,7 @@ function _openEditModal(id) {
   document.getElementById('roll-no').value                 = student.roll_no;
   document.getElementById('student-name').value            = student.name;
   document.getElementById('student-phone').value           = student.phone || '';
+  document.getElementById('student-course').value          = student.course || '';
   document.getElementById('batch-id').value                = student.batch_id || '';
   document.getElementById('college-fee').value             = student.college_fee || '';
   document.getElementById('attendance-fee').value          = student.attendance_fee || '';
@@ -239,6 +240,7 @@ function openAdd() {
   document.getElementById('roll-no').value            = '';
   document.getElementById('student-name').value       = '';
   document.getElementById('student-phone').value      = '';
+  document.getElementById('student-course').value     = '';
   document.getElementById('batch-id').value           = '';
   document.getElementById('college-fee').value        = '';
   document.getElementById('attendance-fee').value     = '';
@@ -276,6 +278,7 @@ async function saveStudent() {
   const rollNo     = document.getElementById('roll-no').value.trim();
   const name       = document.getElementById('student-name').value.trim();
   const phone      = document.getElementById('student-phone').value.trim();
+  const course     = document.getElementById('student-course').value;
   const batchId    = document.getElementById('batch-id').value;
   const collegeFee     = parseFloat(document.getElementById('college-fee').value)     || 0;
   const attendanceFee  = parseFloat(document.getElementById('attendance-fee').value)  || 0;
@@ -296,6 +299,7 @@ async function saveStudent() {
     roll_no: rollNo,
     name,
     phone: phone || null,
+    course: course || null,
     batch_id: batchId,
     college_fee: collegeFee,
     attendance_fee: attendanceFee,
@@ -547,7 +551,8 @@ function handleExcelFile(e) {
         name,
         father_name: String(row['Father name'] || '').trim(),
         quota: String(row['Quota'] || '').trim(),
-        course: String(row['Course'] || '').trim(),
+        course: String(row['Course'] || row['course'] || row['COURSE'] || '').trim(),
+        batch_label: String(row['Batch'] || row['batch'] || row['BATCH'] || '').trim(),
         ssc: normalizeYesNo(row['SSC']),
         inter: normalizeYesNo(row['Inter']),
         degree: normalizeYesNo(row['Degree']),
@@ -639,7 +644,11 @@ async function importExcelData() {
   const validRows = excelRows.filter(r => r.valid);
   if (!validRows.length) { showToast('No valid rows to import.', 'danger'); return; }
 
-  const batchId = batches[0]?.id;
+  // Build batch lookup map: label (lowercase) → id
+
+  const batchMap = {};
+  batches.forEach(b => { batchMap[b.label.toLowerCase().trim()] = b.id; });
+  const defaultBatchId = batches[0]?.id;
   if (!batchId) { showToast('No batch found. Please create batch first.', 'danger'); return; }
 
   const btn = document.getElementById('import-excel-btn');
@@ -652,13 +661,20 @@ async function importExcelData() {
     const user = await getCurrentUser();
 
     for (const row of validRows) {
+      // Match batch by label from Excel, fallback to default
+      const rowBatchKey = (row.batch_label || "").toLowerCase().trim();
+      const resolvedBatchId = batchMap[rowBatchKey] || defaultBatchId;
+      if (!resolvedBatchId) {
+        failedRows.push({ row: row.row_no, name: row.name, reason: `Batch "${row.batch_label}" not found in system` });
+        continue;
+      }
       const studentPayload = {
         roll_no: row.roll_no, name: row.name,
         father_name: row.father_name || null, quota: row.quota || null,
         course: row.course || null, ssc: row.ssc || null,
         inter: row.inter || null, degree: row.degree || null,
         memos: row.memos || null, tc: row.tc || null,
-        batch_id: batchId,
+        batch_id: resolvedBatchId,
         college_fee: row.college_fee, attendance_fee: row.attendance_fee,
         development_fee: row.development_fee, saree_amount: row.saree_amount,
         id_card: row.id_card, concession: row.concession,
