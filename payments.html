@@ -86,6 +86,7 @@
             <th>Date</th>
             <th>Student</th>
             <th>Batch</th>
+            <th>Type</th>
             <th>Receipt No</th>
             <th>Amount</th>
             <th>Mode</th>
@@ -138,6 +139,18 @@
         <div class="progress mt-1">
           <div class="progress-bar" id="summary-bar" style="width:0%"></div>
         </div>
+      </div>
+
+      <div class="form-group">
+        <label>Payment Type *</label>
+        <select id="payment-type" class="form-control">
+          <option value="">Select Payment Type</option>
+          <option value="College Fee">College Fee</option>
+          <option value="Attendance Fee">Attendance Fee</option>
+          <option value="Development Fee">Development Fee</option>
+          <option value="Concession">Concession</option>
+          <option value="Other">Other</option>
+        </select>
       </div>
 
       <div class="form-row">
