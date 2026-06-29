@@ -661,9 +661,34 @@ async function importExcelData() {
     const user = await getCurrentUser();
 
     for (const row of validRows) {
-      // Match batch by label from Excel, fallback to default
-      const rowBatchKey = (row.batch_label || "").toLowerCase().trim();
-      const resolvedBatchId = batchMap[rowBatchKey] || defaultBatchId;
+      // Smart batch matching — handles format variations
+      // e.g. "B.Ed 25-27", "BED25to27", "25-27", "bed 25-27" all should match "B.Ed 25-27"
+      const rowBatchKey = (row.batch_label || '').toLowerCase().trim();
+      const rowCourse   = (row.course || '').toLowerCase().trim();
+
+      // Extract year range from batch label e.g. "25-27" or "2025-2027"
+      const yearMatch = rowBatchKey.match(/(\d{2,4})[^0-9]+(\d{2,4})/);
+      const yearKey   = yearMatch ? `${yearMatch[1].slice(-2)}-${yearMatch[2].slice(-2)}` : null;
+
+      // Try exact match first, then smart match by course + year
+      let resolvedBatchId = batchMap[rowBatchKey];
+
+      if (!resolvedBatchId && yearKey) {
+        // Find batch that contains the year range and matches course
+        const matchedBatch = batches.find(b => {
+          const bl = b.label.toLowerCase();
+          const hasYear   = bl.includes(yearKey);
+          const hasCourse = rowCourse.includes('b.ed') || rowCourse.includes('bed')
+            ? bl.includes('b.ed')
+            : rowCourse.includes('d.ed') || rowCourse.includes('ded')
+              ? bl.includes('d.ed')
+              : true;
+          return hasYear && hasCourse;
+        });
+        resolvedBatchId = matchedBatch?.id;
+      }
+
+      resolvedBatchId = resolvedBatchId || defaultBatchId;
       if (!resolvedBatchId) {
         failedRows.push({ row: row.row_no, name: row.name, reason: `Batch "${row.batch_label}" not found in system` });
         continue;
