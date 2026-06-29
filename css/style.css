@@ -665,3 +665,8 @@ tbody td {
   gap: 6px;
   flex-shrink: 0;
 }
+
+/* ===== PREVENT BATCH BADGE WRAPPING ===== */
+.badge {
+  white-space: nowrap;
+}
