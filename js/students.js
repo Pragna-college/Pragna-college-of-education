@@ -47,7 +47,7 @@ async function loadStudents() {
   const { data: students, error } = await supabase
     .from('students')
     .select('*, batches(label)')
-    .order('name');
+    .order('roll_no');
 
   if (error) {
     showError('students-table', 'Failed to load students.');
@@ -58,7 +58,11 @@ async function loadStudents() {
     .from('fee_payments')
     .select('student_id, amount');
 
-  allStudents = students || [];
+  allStudents = (students || []).sort((a, b) => {
+    const numA = parseInt(a.roll_no) || 0;
+    const numB = parseInt(b.roll_no) || 0;
+    return numA - numB;
+  });
   allPayments = payments || [];
 
   loadCourseFilter();
