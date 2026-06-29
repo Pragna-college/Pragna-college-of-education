@@ -3,268 +3,227 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Students — Pragna College</title>
-  <link rel="stylesheet" href="css/style.css" />
+  <title>Fee Lookup — Pragna College</title>
+  <link rel="stylesheet" href="/css/style.css" />
   <link rel="manifest" href="manifest.json" />
 </head>
 <body>
 
 <!-- NAVBAR -->
 <nav class="navbar">
-  <a href="index.html" class="navbar-brand">
+  <a href="student-view.html" class="navbar-brand">
     <span>🎓</span> Pragna College
   </a>
-  <button class="hamburger" id="hamburger">☰</button>
-  <div class="navbar-menu" id="nav-menu">
-    <a href="index.html">Dashboard</a>
-    <a href="students.html" class="active">Students</a>
-    <a href="payments.html">Payments</a>
-    <a href="certificates.html">Certificates</a>
-    <a href="audit.html">Audit Log</a>
-  </div>
   <div class="navbar-right">
-    <span id="user-email"></span>
-    <button id="logout-btn" class="btn btn-outline" style="color:white;border-color:rgba(255,255,255,0.4);padding:5px 12px;font-size:0.8rem;">Logout</button>
+    <a href="login.html" class="btn btn-outline" style="color:white;border-color:rgba(255,255,255,0.4);padding:5px 12px;font-size:0.8rem;">
+      Staff Login
+    </a>
   </div>
 </nav>
 
 <!-- PAGE -->
-<div class="page">
+<div class="page" style="max-width:800px;">
 
-  <div class="page-header">
-    <h1 class="page-title">Students</h1>
-    <div class="flex gap-1 flex-wrap">
-      <button class="btn btn-success" id="upload-excel-btn">📤 Upload Excel</button>
-      <button class="btn btn-primary" id="add-student-btn">+ Add Student</button>
+  <!-- SEARCH SECTION (tabs + search + list) -->
+  <div id="search-section">
+
+    <div style="text-align:center;padding:32px 0 20px;">
+      <div style="font-size:3rem;">🎓</div>
+      <h1 style="color:var(--primary);margin-bottom:6px;">Student Fee Details</h1>
+      <p class="text-muted">View your fee status and payment history</p>
     </div>
-  </div>
 
-  <!-- FILTERS -->
-  <div class="card" style="padding:14px 20px;">
-    <div class="search-bar">
-      <input type="text" id="search-input" class="search-input" placeholder="Search by name or roll no..." />
-      <select id="batch-filter" class="form-control" style="width:auto;">
-        <option value="">All Batches</option>
-      </select>
-      <select id="course-filter" class="form-control" style="width:auto;">
-        <option value="">All Courses</option>
-      </select>
-      <select id="status-filter" class="form-control" style="width:auto;">
-        <option value="">All Status</option>
-        <option value="due">Fee Due</option>
-        <option value="clear">Fee Clear</option>
-        <option value="tc">TC Taken</option>
-      </select>
+    <!-- TABS -->
+    <div class="sv-tabs">
+      <button class="sv-tab-btn active" id="tab-btn-list" onclick="switchTab('list')">📋 All Students</button>
+      <button class="sv-tab-btn" id="tab-btn-search" onclick="switchTab('search')">🔍 Search</button>
     </div>
-  </div>
 
-  <!-- STUDENTS TABLE -->
-  <div class="card">
-    <div class="table-wrap">
+    <!-- TAB: ALL STUDENTS LIST -->
+    <div class="sv-tab-panel" id="tab-panel-list">
+      <div class="card" style="padding:12px 16px;margin-bottom:12px;">
+        <input
+          type="text"
+          id="list-search-input"
+          class="search-input"
+          placeholder="Filter by name or hall ticket..."
+          style="width:100%;box-sizing:border-box;"
+        />
+      </div>
+      <div id="all-students-list">
+        <div class="loading"><div class="spinner"></div><p>Loading students...</p></div>
+      </div>
+    </div>
+
+    <!-- TAB: SEARCH -->
+    <div class="sv-tab-panel" id="tab-panel-search" style="display:none;">
+      <div class="card">
+        <div class="search-bar" style="margin-bottom:0;flex-wrap:wrap;gap:8px;">
+          <input
+            type="text"
+            id="search-input"
+            class="search-input"
+            placeholder="Search by name or hall ticket number..."
+            style="flex:1;min-width:180px;"
+          />
+          <select id="course-filter" class="form-control" style="width:auto;">
+            <option value="">All Courses</option>
+          </select>
+          <select id="batch-filter" class="form-control" style="width:auto;">
+            <option value="">All Batches</option>
+          </select>
+          <button class="btn btn-primary" id="search-btn">Search</button>
+        </div>
+      </div>
+
+      <!-- Scholarship link -->
+      <div id="scholarship-wrap" style="display:none;text-align:center;margin-top:16px;">
+        <a id="scholarship-link" href="#" target="_blank" class="btn btn-warning">
+          🎓 Apply for Scholarship
+        </a>
+      </div>
+
+      <!-- Search results -->
+      <div id="search-results" style="margin-top:20px;"></div>
+    </div>
+
+  </div>
+  <!-- END SEARCH SECTION -->
+
+  <!-- STUDENT DETAIL SECTION -->
+  <div id="student-detail" style="display:none;">
+
+    <div style="margin-bottom:16px;">
+      <button class="btn btn-outline" id="back-btn">← Back</button>
+    </div>
+
+    <!-- STUDENT INFO CARD -->
+    <div class="card">
+      <div class="flex justify-between align-center flex-wrap gap-1">
+        <div>
+          <h2 id="detail-name" style="color:var(--primary);margin-bottom:4px;"></h2>
+          <div class="text-muted" id="detail-roll"></div>
+          <div class="text-muted" id="detail-batch"></div>
+        </div>
+        <div style="text-align:right;">
+          <div id="detail-phone"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FEE SUMMARY -->
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="label">Total Fee</div>
+        <div class="value" id="detail-total-fee">—</div>
+        <div class="sub">Before concession</div>
+      </div>
+      <div class="summary-card success">
+        <div class="label">Total Paid</div>
+        <div class="value" id="detail-paid">—</div>
+        <div class="sub" id="detail-percent">0% paid</div>
+      </div>
+      <div class="summary-card danger">
+        <div class="label">Balance Due</div>
+        <div class="value" id="detail-balance">—</div>
+        <div class="sub">Remaining amount</div>
+      </div>
+    </div>
+
+    <!-- FEE BREAKDOWN -->
+    <div class="card">
+      <div class="card-title">Fee Breakdown</div>
       <table>
-        <thead>
+        <tbody>
           <tr>
-            <th>Roll No</th>
-            <th>Name</th>
-            <th>Course</th>
-            <th>Batch</th>
-            <th>Net Payable</th>
-            <th>Paid</th>
-            <th>Balance</th>
-            <th>Progress</th>
-            <th>Actions</th>
+            <td>College Fee</td>
+            <td class="text-right" id="break-college">—</td>
           </tr>
-        </thead>
-        <tbody id="students-table">
-          <tr><td colspan="9" class="empty-msg">Loading...</td></tr>
+          <tr>
+            <td>Attendance Fee</td>
+            <td class="text-right" id="break-attendance">—</td>
+          </tr>
+          <tr>
+            <td>Development Fee</td>
+            <td class="text-right" id="break-development">—</td>
+          </tr>
+          <tr style="border-top:2px solid var(--border);">
+            <td><strong>Total Fee</strong></td>
+            <td class="text-right"><strong id="break-total">—</strong></td>
+          </tr>
+          <tr>
+            <td class="text-success">Concession</td>
+            <td class="text-right text-success" id="break-concession">—</td>
+          </tr>
+          <tr>
+            <td class="text-success">Scholarship</td>
+            <td class="text-right text-success" id="break-scholarship">—</td>
+          </tr>
+          <tr style="border-top:2px solid var(--border);">
+            <td><strong style="color:var(--primary);">Net Payable</strong></td>
+            <td class="text-right">
+              <strong style="color:var(--primary);font-size:1.1rem;" id="break-net">—</strong>
+            </td>
+          </tr>
         </tbody>
       </table>
+
+      <!-- PROGRESS BAR -->
+      <div style="margin-top:16px;">
+        <div class="flex justify-between mb-1">
+          <small class="text-muted">Payment Progress</small>
+          <small id="progress-label">0%</small>
+        </div>
+        <div class="progress" style="height:12px;">
+          <div class="progress-bar" id="progress-bar" style="width:0%;"></div>
+        </div>
+      </div>
     </div>
+
+    <!-- PAYMENT HISTORY -->
+    <div class="card">
+      <div class="card-title">Payment History</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Date</th>
+              <th>Receipt No</th>
+              <th>Amount</th>
+              <th>Mode</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody id="payment-history">
+            <tr><td colspan="6" class="empty-msg">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SUBMITTED DOCUMENTS -->
+    <div class="card">
+      <div class="card-title">Submitted Documents</div>
+      <div id="documents-list"></div>
+    </div>
+
+    <!-- SCHOLARSHIP LINK -->
+    <div id="scholarship-wrap-detail" style="display:none;text-align:center;margin:20px 0;">
+      <a id="scholarship-link-detail" href="#" target="_blank" class="btn btn-warning btn-lg">
+        🎓 Apply for Scholarship
+      </a>
+    </div>
+
   </div>
+  <!-- END STUDENT DETAIL -->
 
-</div>
-
-<!-- ADD / EDIT STUDENT MODAL -->
-<div class="modal-overlay" id="student-modal">
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title" id="modal-title">Add Student</div>
-      <button class="modal-close" id="modal-close">✕</button>
-    </div>
-    <div class="modal-body">
-
-      <input type="hidden" id="student-id" />
-
-      <div class="form-row">
-        <div class="form-group">
-          <label>Roll Number *</label>
-          <input type="text" id="roll-no" class="form-control" placeholder="PCE-2024-001" />
-        </div>
-        <div class="form-group">
-          <label>Batch *</label>
-          <select id="batch-id" class="form-control">
-            <option value="">Select Batch</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label>Full Name *</label>
-        <input type="text" id="student-name" class="form-control" placeholder="Student full name" />
-      </div>
-
-      <div class="form-row">
-        <div class="form-group">
-          <label>Course *</label>
-          <select id="student-course" class="form-control">
-            <option value="">Select Course</option>
-            <option value="B.Ed">B.Ed</option>
-            <option value="D.Ed">D.Ed</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Phone</label>
-          <input type="text" id="student-phone" class="form-control" placeholder="10-digit mobile number" />
-        </div>
-      </div>
-
-      <div style="background:#f4f6f9;border-radius:8px;padding:16px;margin-bottom:16px;">
-        <div style="font-weight:600;margin-bottom:12px;color:var(--primary);">Fee Details</div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>College Fee (₹)</label>
-            <input type="number" id="college-fee" class="form-control" placeholder="0" min="0" />
-          </div>
-          <div class="form-group">
-            <label>Attendance Fee (₹)</label>
-            <input type="number" id="attendance-fee" class="form-control" placeholder="0" min="0" />
-          </div>
-          <div class="form-group">
-            <label>Development Fee (₹)</label>
-            <input type="number" id="development-fee" class="form-control" placeholder="0" min="0" />
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Concession (₹)</label>
-            <input type="number" id="concession" class="form-control" placeholder="0" min="0" />
-          </div>
-          <div class="form-group">
-            <label>Scholarship Amount (₹)</label>
-            <input type="number" id="scholarship-amount" class="form-control" placeholder="0" min="0" />
-          </div>
-        </div>
-        <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px;">
-          <div class="flex justify-between">
-            <span class="text-muted">Total Fee:</span>
-            <strong id="calc-total">₹0</strong>
-          </div>
-          <div class="flex justify-between mt-1">
-            <span class="text-muted">Concession:</span>
-            <strong id="calc-concession">₹0</strong>
-          </div>
-          <div class="flex justify-between mt-1">
-            <span style="font-weight:700;color:var(--primary);">Net Payable:</span>
-            <strong id="calc-net" style="color:var(--primary);font-size:1.1rem;">₹0</strong>
-          </div>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label>Notes</label>
-        <textarea id="student-notes" class="form-control" rows="2" placeholder="Any additional notes..."></textarea>
-      </div>
-
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" id="cancel-btn">Cancel</button>
-      <button class="btn btn-primary" id="save-student-btn">Save Student</button>
-    </div>
-  </div>
-</div>
-
-<!-- PASSWORD MODAL -->
-<div class="modal-overlay" id="pw-modal">
-  <div class="modal" style="max-width:380px;">
-    <div class="modal-header">
-      <div class="modal-title">🔒 Admin Verification</div>
-      <button class="modal-close" id="pw-modal-close">✕</button>
-    </div>
-    <div class="modal-body">
-      <p class="text-muted" style="margin-bottom:14px;">Enter the admin password to edit this student's details.</p>
-      <div class="form-group">
-        <label>Password</label>
-        <input type="password" id="pw-input" class="form-control" placeholder="Enter password..." />
-      </div>
-      <p id="pw-error" style="color:var(--danger);font-size:0.85rem;margin-top:6px;min-height:20px;"></p>
-      <input type="hidden" id="pw-student-id" />
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" id="pw-cancel-btn">Cancel</button>
-      <button class="btn btn-primary" id="pw-submit-btn">🔓 Unlock &amp; Edit</button>
-    </div>
-  </div>
-</div>
-
-<!-- TC CONFIRM MODAL -->
-<div class="modal-overlay" id="tc-modal">
-  <div class="modal" style="max-width:420px;">
-    <div class="modal-header">
-      <div class="modal-title">📋 Mark TC Taken</div>
-      <button class="modal-close" id="tc-modal-close">✕</button>
-    </div>
-    <div class="modal-body">
-      <p>Are you sure <strong id="tc-student-name"></strong> has taken their Transfer Certificate?</p>
-      <p class="text-muted mt-1" style="font-size:0.85rem;">
-        The student will be greyed out in the list to show they have left. You can undo this anytime using the ↩️ button.
-      </p>
-      <input type="hidden" id="tc-student-id" />
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" id="tc-cancel-btn">Cancel</button>
-      <button class="btn btn-warning" id="confirm-tc-btn">Yes, Mark TC</button>
-    </div>
-  </div>
-</div>
-
-<!-- EXCEL UPLOAD MODAL -->
-<div class="modal-overlay" id="excel-modal">
-  <div class="modal" style="max-width:760px;">
-    <div class="modal-header">
-      <div class="modal-title">Upload Students Excel</div>
-      <button class="modal-close" id="excel-modal-close">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="form-group">
-        <label>Select Excel File</label>
-        <input type="file" id="excel-file" class="form-control" accept=".xlsx,.xls,.csv" />
-        <div class="form-hint">
-          Required columns: Hall ticket no, Name, College fee, Dev Fee, Add Fee, Fee 1-Date 1 up to Fee 10-Date 10
-        </div>
-      </div>
-      <div id="excel-preview" style="margin-top:16px;"></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" id="excel-cancel-btn">Cancel</button>
-      <button class="btn btn-primary" id="import-excel-btn" disabled>Import Data</button>
-    </div>
-  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-<script src="js/config.js"></script>
-<script src="js/utils.js"></script>
-<script src="js/auth.js"></script>
-<script src="js/students.js"></script>
-<script>
-  document.getElementById('hamburger').addEventListener('click', () => {
-    document.getElementById('nav-menu').classList.toggle('open');
-  });
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js');
-  }
-</script>
+<script src="/js/config.js"></script>
+<script src="/js/utils.js"></script>
+<script src="/js/student-view.js"></script>
 
 </body>
 </html>
