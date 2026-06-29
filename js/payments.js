@@ -222,7 +222,7 @@ async function savePayment() {
   const notes      = document.getElementById('payment-notes').value.trim();
 
   if (!studentId || !amount || !mode || !date) {
-    showToast('Please fill Student, Amount, Mode and Date.', 'danger');
+    showToast('Please fill Student, Payment Type, Amount, Mode and Date.', 'danger');
     return;
   }
 
