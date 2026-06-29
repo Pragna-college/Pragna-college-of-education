@@ -154,7 +154,7 @@ function renderStudents() {
           ${tcBadge}
           ${s.notes ? `<br><small class="text-muted">${s.notes}</small>` : ''}
         </td>
-        <td>${s.course ? `<span class="badge badge-muted">${s.course}</span>` : '—'}</td>
+        <td>${s.course ? `<span class="badge badge-muted">${s.course}</span>` : '—'}${s.quota ? `<br><small class="text-muted">${s.quota}</small>` : ''}</td>
         <td><span class="badge badge-info">${s.batches?.label || '—'}</span></td>
         <td>${formatCurrency(s.net_payable)}</td>
         <td class="text-success"><strong>${formatCurrency(paid)}</strong></td>
@@ -226,6 +226,7 @@ function _openEditModal(id) {
   document.getElementById('student-name').value            = student.name;
   document.getElementById('student-phone').value           = student.phone || '';
   document.getElementById('student-course').value          = student.course || '';
+  document.getElementById('student-quota').value           = student.quota || '';
   document.getElementById('batch-id').value                = student.batch_id || '';
   document.getElementById('college-fee').value             = student.college_fee || '';
   document.getElementById('attendance-fee').value          = student.attendance_fee || '';
@@ -245,6 +246,7 @@ function openAdd() {
   document.getElementById('student-name').value       = '';
   document.getElementById('student-phone').value      = '';
   document.getElementById('student-course').value     = '';
+  document.getElementById('student-quota').value      = '';
   document.getElementById('batch-id').value           = '';
   document.getElementById('college-fee').value        = '';
   document.getElementById('attendance-fee').value     = '';
@@ -283,6 +285,7 @@ async function saveStudent() {
   const name       = document.getElementById('student-name').value.trim();
   const phone      = document.getElementById('student-phone').value.trim();
   const course     = document.getElementById('student-course').value;
+  const quota      = document.getElementById('student-quota').value;
   const batchId    = document.getElementById('batch-id').value;
   const collegeFee     = parseFloat(document.getElementById('college-fee').value)     || 0;
   const attendanceFee  = parseFloat(document.getElementById('attendance-fee').value)  || 0;
@@ -304,6 +307,7 @@ async function saveStudent() {
     name,
     phone: phone || null,
     course: course || null,
+    quota: quota || null,
     batch_id: batchId,
     college_fee: collegeFee,
     attendance_fee: attendanceFee,
