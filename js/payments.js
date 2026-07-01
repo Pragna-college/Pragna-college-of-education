@@ -273,23 +273,22 @@ async function savePayment() {
 
       const currentConcession = student.concession || 0;
       const newConcession = currentConcession + amount;
-      const newNet = (student.total_fee || 0) - newConcession;
 
+      // Only update concession â net_payable is auto-calculated by Supabase
       const { error } = await supabase
         .from('students')
-        .update({ concession: newConcession, net_payable: newNet })
+        .update({ concession: newConcession })
         .eq('id', studentId);
 
       if (error) throw error;
 
       await writeAudit('students', 'CONCESSION_APPLIED',
-        { concession: currentConcession, net_payable: student.net_payable, name: student.name },
-        { concession: newConcession,     net_payable: newNet,              name: student.name }
+        { concession: currentConcession, name: student.name },
+        { concession: newConcession,     name: student.name }
       );
 
-      // Also update local cache
-      student.concession  = newConcession;
-      student.net_payable = newNet;
+      // Update local cache
+      student.concession = newConcession;
 
       showToast(`Concession of ${formatCurrency(amount)} applied to ${student.name}.`);
       closeModal();
