@@ -48,7 +48,7 @@ async function loadStudents() {
   allStudents.forEach((s) => {
     const opt = document.createElement('option');
     opt.value = s.id;
-    opt.textContent = `${s.roll_no} — ${s.name}`;
+    opt.textContent = `${s.roll_no} â ${s.name}`;
     opt.dataset.batchId = s.batch_id;
     select.appendChild(opt);
   });
@@ -117,23 +117,23 @@ function renderPayments() {
     <tr>
       <td>${formatDate(p.payment_date)}</td>
       <td>
-        <strong>${p.students?.name || '—'}</strong><br>
+        <strong>${p.students?.name || 'â'}</strong><br>
         <small class="text-muted">${p.students?.roll_no || ''}</small>
       </td>
-      <td><span class="badge badge-info">${p.students?.batches?.label || '—'}</span></td>
-      <td>${p.receipt_no || '—'}</td>
+      <td><span class="badge badge-info">${p.students?.batches?.label || 'â'}</span></td>
+      <td>${p.receipt_no || 'â'}</td>
       <td><strong>${formatCurrency(p.amount)}</strong></td>
       <td>
         <span class="badge ${p.mode === 'cash' ? 'badge-warning' : 'badge-success'}">
           ${p.mode}
         </span>
       </td>
-      <td><small>${p.notes || '—'}</small></td>
-      <td><small class="text-muted">${p.recorded_by || '—'}</small></td>
+      <td><small>${p.notes || 'â'}</small></td>
+      <td><small class="text-muted">${p.recorded_by || 'â'}</small></td>
       <td>
         <div class="flex gap-1">
-          <button class="btn btn-outline btn-sm" onclick="openEdit('${p.id}')">✏️</button>
-          <button class="btn btn-danger btn-sm" onclick="openDelete('${p.id}')">🗑️</button>
+          <button class="btn btn-outline btn-sm" onclick="openEdit('${p.id}')">âï¸</button>
+          <button class="btn btn-danger btn-sm" onclick="openDelete('${p.id}')">ðï¸</button>
         </div>
       </td>
     </tr>
@@ -213,16 +213,33 @@ function closeModal() {
 
 // Save payment
 async function savePayment() {
-  const id         = document.getElementById('payment-id').value;
-  const studentId  = document.getElementById('student-select').value;
-  const amount     = parseFloat(document.getElementById('payment-amount').value);
-  const mode       = document.getElementById('payment-mode').value;
-  const date       = document.getElementById('payment-date').value;
-  const receiptNo  = document.getElementById('receipt-no').value.trim();
-  const notes      = document.getElementById('payment-notes').value.trim();
+  const id          = document.getElementById('payment-id').value;
+  const studentId   = document.getElementById('student-select').value;
+  const paymentType = document.getElementById('payment-type').value;
+  const amount      = parseFloat(document.getElementById('payment-amount').value);
+  const mode        = document.getElementById('payment-mode').value;
+  const date        = document.getElementById('payment-date').value;
+  const receiptNo   = document.getElementById('receipt-no').value.trim();
+  const notes       = document.getElementById('payment-notes').value.trim();
 
-  if (!studentId || !amount || !mode || !date) {
-    showToast('Please fill Student, Payment Type, Amount, Mode and Date.', 'danger');
+  if (!studentId || !paymentType) {
+    showToast('Please select a Student and Payment Type.', 'danger');
+    return;
+  }
+
+  if (!amount || amount <= 0) {
+    showToast('Please enter a valid amount.', 'danger');
+    return;
+  }
+
+  // Concession does not need a date or mode â it's a discount not a payment
+  if (paymentType !== 'Concession' && !date) {
+    showToast('Please select a payment date.', 'danger');
+    return;
+  }
+
+  if (paymentType !== 'Concession' && !mode) {
+    showToast('Please select a payment mode.', 'danger');
     return;
   }
 
@@ -234,13 +251,14 @@ async function savePayment() {
   const user = await getCurrentUser();
 
   const payload = {
-    student_id:   studentId,
+    student_id:    studentId,
+    payment_type:  paymentType || null,
     amount,
     mode,
-    payment_date: date,
-    receipt_no:   receiptNo || null,
-    notes:        notes || null,
-    recorded_by:  user?.email || 'unknown',
+    payment_date:  date,
+    receipt_no:    receiptNo || null,
+    notes:         notes || null,
+    recorded_by:   user?.email || 'unknown',
   };
 
   const btn = document.getElementById('save-payment-btn');
@@ -249,7 +267,7 @@ async function savePayment() {
 
   try {
     if (paymentType === 'Concession') {
-      // Concession is a discount — update student record directly
+      // Concession is a discount â update student record directly
       const student = allStudents.find(s => s.id === studentId);
       if (!student) throw new Error('Student not found');
 
@@ -278,7 +296,7 @@ async function savePayment() {
       await loadPayments();
 
     } else {
-      // Normal payment — add to fee_payments
+      // Normal payment â add to fee_payments
       if (id) {
         const old = allPayments.find((p) => p.id === id);
         const { error } = await supabase.from('fee_payments').update(payload).eq('id', id);
@@ -355,7 +373,7 @@ function setupEventListeners() {
   document.getElementById('from-date').addEventListener('change', renderPayments);
   document.getElementById('to-date').addEventListener('change', renderPayments);
 
-  // Student select — load summary
+  // Student select â load summary
   document.getElementById('student-select').addEventListener('change', (e) => {
     loadStudentSummary(e.target.value);
   });
@@ -372,7 +390,7 @@ function setupEventListeners() {
       receiptGroup.style.pointerEvents = 'none';
       document.getElementById('payment-mode').value = 'cash';
       document.querySelector('label[for="payment-amount"]') &&
-        (document.querySelector('#payment-amount').previousElementSibling.textContent = 'Concession Amount (₹) *');
+        (document.querySelector('#payment-amount').previousElementSibling.textContent = 'Concession Amount (â¹) *');
     } else {
       modeGroup.style.opacity = '';
       modeGroup.style.pointerEvents = '';
