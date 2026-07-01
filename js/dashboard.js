@@ -71,10 +71,11 @@ async function loadDashboard() {
     .order('payment_date', { ascending: false });
 
   // Summary calculations
-  const totalFee   = students.reduce((s, st) => s + (st.net_payable || 0), 0);
-  const totalPaid  = (payments || []).reduce((s, p) => s + (p.amount || 0), 0);
-  const totalDue   = totalFee - totalPaid;
-  const percent    = totalFee > 0 ? Math.round((totalPaid / totalFee) * 100) : 0;
+  const totalFee        = students.reduce((s, st) => s + (st.net_payable || 0), 0);
+  const totalPaid       = (payments || []).reduce((s, p) => s + (p.amount || 0), 0);
+  const totalDue        = totalFee - totalPaid;
+  const totalConcession = students.reduce((s, st) => s + (st.concession || 0), 0);
+  const percent         = totalFee > 0 ? Math.round((totalPaid / totalFee) * 100) : 0;
 
   // Students with balance > 0
   const paidPerStudent = {};
@@ -86,13 +87,17 @@ async function loadDashboard() {
   ).length;
 
   // Update summary cards
-  document.getElementById('total-students').textContent = students.length;
-  document.getElementById('total-fee').textContent      = formatCurrency(totalFee);
-  document.getElementById('total-paid').textContent     = formatCurrency(totalPaid);
-  document.getElementById('total-due').textContent      = formatCurrency(totalDue);
-  document.getElementById('paid-percent').textContent   = `${percent}% collected`;
-  document.getElementById('overdue-count').textContent  = `${overdueCount} students with pending dues`;
-  document.getElementById('batch-label').textContent    = batchId ? '' : 'All Batches';
+  document.getElementById('total-students').textContent   = students.length;
+  document.getElementById('total-fee').textContent        = formatCurrency(totalFee);
+  document.getElementById('total-paid').textContent       = formatCurrency(totalPaid);
+  document.getElementById('total-due').textContent        = formatCurrency(totalDue);
+  document.getElementById('total-concession').textContent = formatCurrency(totalConcession);
+  document.getElementById('paid-percent').textContent     = `${percent}% collected`;
+  document.getElementById('overdue-count').textContent    = `${overdueCount} students with pending dues`;
+  document.getElementById('batch-label').textContent      = batchId ? '' : 'All Batches';
+  const concessionCount = students.filter(s => (s.concession || 0) > 0).length;
+  document.getElementById('concession-sub').textContent   = `${concessionCount} students with concession`;
+  renderConcessionBreakdown(students);
 
   // Charts
   renderMonthlyChart(payments || []);
@@ -313,6 +318,54 @@ function renderHighDueStudents(students) {
       </tr>
     `;
   }).join('');
+}
+
+
+// Course-wise concession breakdown
+function renderConcessionBreakdown(students) {
+  const wrap = document.getElementById('concession-breakdown');
+  if (!wrap) return;
+
+  const courseMap = {};
+  students.forEach(s => {
+    const course = s.course || 'Unknown';
+    if (!courseMap[course]) courseMap[course] = { count: 0, totalConcession: 0, withConcession: 0 };
+    courseMap[course].count++;
+    courseMap[course].totalConcession += (s.concession || 0);
+    if ((s.concession || 0) > 0) courseMap[course].withConcession++;
+  });
+
+  const courses = Object.entries(courseMap).sort((a, b) => b[1].totalConcession - a[1].totalConcession);
+
+  if (!courses.length) {
+    wrap.innerHTML = '<p class="text-muted" style="padding:12px;">No concession data available.</p>';
+    return;
+  }
+
+  wrap.innerHTML = `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Course</th>
+            <th>Total Students</th>
+            <th>With Concession</th>
+            <th>Total Concession Given</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${courses.map(([course, data]) => `
+            <tr>
+              <td><span class="badge badge-muted">${course}</span></td>
+              <td>${data.count}</td>
+              <td>${data.withConcession}</td>
+              <td><strong style="color:var(--warning);">${formatCurrency(data.totalConcession)}</strong></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
 }
 
 // Init
