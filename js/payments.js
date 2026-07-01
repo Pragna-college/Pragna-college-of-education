@@ -39,7 +39,7 @@ async function loadBatches() {
 async function loadStudents() {
   const { data } = await supabase
     .from('students')
-    .select('id, name, roll_no, batch_id, net_payable, batches(label)')
+    .select('id, name, roll_no, batch_id, net_payable, total_fee, concession, batches(label)')
     .order('name');
 
   allStudents = data || [];
@@ -248,21 +248,53 @@ async function savePayment() {
   btn.textContent = 'Saving...';
 
   try {
-    if (id) {
-      const old = allPayments.find((p) => p.id === id);
-      const { error } = await supabase.from('fee_payments').update(payload).eq('id', id);
+    if (paymentType === 'Concession') {
+      // Concession is a discount — update student record directly
+      const student = allStudents.find(s => s.id === studentId);
+      if (!student) throw new Error('Student not found');
+
+      const currentConcession = student.concession || 0;
+      const newConcession = currentConcession + amount;
+      const newNet = (student.total_fee || 0) - newConcession;
+
+      const { error } = await supabase
+        .from('students')
+        .update({ concession: newConcession, net_payable: newNet })
+        .eq('id', studentId);
+
       if (error) throw error;
-      await writeAudit('fee_payments', 'UPDATE', old, { ...old, ...payload });
-      showToast('Payment updated successfully!');
+
+      await writeAudit('students', 'CONCESSION_APPLIED',
+        { concession: currentConcession, net_payable: student.net_payable, name: student.name },
+        { concession: newConcession,     net_payable: newNet,              name: student.name }
+      );
+
+      // Also update local cache
+      student.concession  = newConcession;
+      student.net_payable = newNet;
+
+      showToast(`Concession of ${formatCurrency(amount)} applied to ${student.name}.`);
+      closeModal();
+      await loadPayments();
+
     } else {
-      const { error } = await supabase.from('fee_payments').insert(payload);
-      if (error) throw error;
-      await writeAudit('fee_payments', 'INSERT', null, payload);
-      showToast('Payment recorded successfully!');
+      // Normal payment — add to fee_payments
+      if (id) {
+        const old = allPayments.find((p) => p.id === id);
+        const { error } = await supabase.from('fee_payments').update(payload).eq('id', id);
+        if (error) throw error;
+        await writeAudit('fee_payments', 'UPDATE', old, { ...old, ...payload });
+        showToast('Payment updated successfully!');
+      } else {
+        const { error } = await supabase.from('fee_payments').insert(payload);
+        if (error) throw error;
+        await writeAudit('fee_payments', 'INSERT', null, payload);
+        showToast('Payment recorded successfully!');
+      }
+      closeModal();
+      await loadPayments();
     }
 
-    closeModal();
-    await loadPayments();
   } catch (err) {
     showToast(err.message || 'Failed to save payment.', 'danger');
   } finally {
@@ -326,6 +358,28 @@ function setupEventListeners() {
   // Student select — load summary
   document.getElementById('student-select').addEventListener('change', (e) => {
     loadStudentSummary(e.target.value);
+  });
+
+  // When Concession is selected, update summary label
+  document.getElementById('payment-type').addEventListener('change', (e) => {
+    const isConcession = e.target.value === 'Concession';
+    const modeGroup = document.getElementById('payment-mode').closest('.form-group');
+    const receiptGroup = document.getElementById('receipt-no').closest('.form-group');
+    if (isConcession) {
+      modeGroup.style.opacity = '0.4';
+      modeGroup.style.pointerEvents = 'none';
+      receiptGroup.style.opacity = '0.4';
+      receiptGroup.style.pointerEvents = 'none';
+      document.getElementById('payment-mode').value = 'cash';
+      document.querySelector('label[for="payment-amount"]') &&
+        (document.querySelector('#payment-amount').previousElementSibling.textContent = 'Concession Amount (₹) *');
+    } else {
+      modeGroup.style.opacity = '';
+      modeGroup.style.pointerEvents = '';
+      receiptGroup.style.opacity = '';
+      receiptGroup.style.pointerEvents = '';
+      const lbl = document.querySelector('.form-group label');
+    }
   });
 }
 
