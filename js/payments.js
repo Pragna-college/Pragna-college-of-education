@@ -259,14 +259,13 @@ async function savePayment() {
   const user = await getCurrentUser();
 
   const payload = {
-    student_id:    studentId,
-    payment_type:  paymentType || null,
+    student_id: studentId,
     amount,
     mode,
-    payment_date:  date,
-    receipt_no:    receiptNo || null,
-    notes:         notes || null,
-    recorded_by:   user?.email || 'unknown',
+    payment_date: date,
+    receipt_no: receiptNo || null,
+    notes: notes || null,
+    recorded_by: user?.email || 'unknown',
   };
 
   const btn = document.getElementById('save-payment-btn');
