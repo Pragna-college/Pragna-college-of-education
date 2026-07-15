@@ -128,7 +128,7 @@ function renderPayments() {
         <small class="text-muted">${p.students?.roll_no || ''}</small>
       </td>
       <td><span class="badge badge-info">${p.students?.batches?.label || '—'}</span></td>
-      <td>${p.payment_type ? `<span class="badge badge-muted">${p.payment_type}</span>` : '—'}</td>
+      <td><span class="badge badge-muted">Fee Payment</span></td>
       <td>${p.receipt_no || '—'}</td>
       <td><strong>${formatCurrency(p.amount)}</strong></td>
       <td>
@@ -259,13 +259,14 @@ async function savePayment() {
   const user = await getCurrentUser();
 
   const payload = {
-    student_id: studentId,
+    student_id:    studentId,
+    payment_type:  paymentType || null,
     amount,
     mode,
-    payment_date: date,
-    receipt_no: receiptNo || null,
-    notes: notes || null,
-    recorded_by: user?.email || 'unknown',
+    payment_date:  date,
+    receipt_no:    receiptNo || null,
+    notes:         notes || null,
+    recorded_by:   user?.email || 'unknown',
   };
 
   const btn = document.getElementById('save-payment-btn');
