@@ -290,9 +290,18 @@ async function savePayment() {
 
       if (error) throw error;
 
-      await writeAudit('students', 'CONCESSION_APPLIED',
-        { concession: currentConcession, name: student.name },
-        { concession: newConcession,     name: student.name }
+      await writeAudit(
+        'students',
+        'UPDATE',
+        {
+          concession: currentConcession,
+          name: student.name
+        },
+        {
+          concession: newConcession,
+          name: student.name,
+          change_reason: 'Concession applied'
+        }
       );
 
       // Update local cache
