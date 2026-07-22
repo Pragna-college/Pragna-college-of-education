@@ -193,6 +193,7 @@ async function openAdd() {
   document.getElementById('receipt-no').value         = '';
   document.getElementById('payment-notes').value      = '';
   document.getElementById('student-summary').style.display = 'none';
+  document.getElementById('student-payment-history').innerHTML = '';
   document.getElementById('payment-modal').classList.add('open');
 }
 
