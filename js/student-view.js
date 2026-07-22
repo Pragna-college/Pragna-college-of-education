@@ -252,6 +252,8 @@ async function loadStudentDetail(studentId, updateUrl = true) {
     .eq('student_id', studentId)
     .order('payment_date', { ascending: false });
 
+  document.getElementById('record-payment-btn').href = `payments.html?student=${student.id}`;
+
   setText('detail-name',       student.name);
   setText('detail-roll',       `Hall Ticket No: ${student.roll_no}`);
   setText('detail-batch',      `Batch: ${student.batches?.label || '-'} | Course: ${student.course || '-'}`);
