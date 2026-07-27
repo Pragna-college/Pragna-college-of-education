@@ -470,7 +470,7 @@ async function generateReceipt(paymentId) {
           }),
         });
       }
-    }
+    
 
     await buildAndShareReceiptPDF(receipt);
 
