@@ -1,5 +1,5 @@
 // Service Worker for Pragna College PWA
-const CACHE_NAME = 'pragna-v17';
+const CACHE_NAME = 'pragna-v18';
 
 const STATIC_ASSETS = [
   '/',
