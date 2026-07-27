@@ -483,9 +483,11 @@ async function generateReceipt(paymentId) {
 async function buildAndShareReceiptPDF(receipt) {
   const { PDFDocument, rgb, StandardFonts } = PDFLib;
 
-  const verifyUrl = `https://pragnacollege.in/verify.html?r=${receipt.receipt_number}`;
-  const qrDataUrl = await QRCode.toDataURL(verifyUrl);
-  const qrImageBytes = Uint8Array.from(atob(qrDataUrl.split(',')[1]), (c) => c.charCodeAt(0));
+const verifyUrl = `https://pragnacollege.in/verify.html?r=${receipt.receipt_number}`;
+  const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(verifyUrl)}`;
+  const qrResponse = await fetch(qrApiUrl);
+  const qrArrayBuffer = await qrResponse.arrayBuffer();
+  const qrImageBytes = new Uint8Array(qrArrayBuffer);
 
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage([420, 595]); // A5 = half of A4
