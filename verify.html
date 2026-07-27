@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Verify Receipt — Pragna College</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<nav class="navbar">
+  <a href="index.html" class="navbar-brand"><span>🎓</span> Pragna College</a>
+</nav>
+
+<div class="page" style="max-width:480px;margin:40px auto;">
+  <div class="card" style="padding:24px;text-align:center;">
+    <div id="verify-content">
+      <p class="text-muted">Checking receipt...</p>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script>
+async function verifyReceipt() {
+  const params = new URLSearchParams(window.location.search);
+  const receiptNo = params.get('r');
+  const el = document.getElementById('verify-content');
+
+  if (!receiptNo) {
+    el.innerHTML = '<p class="text-danger">No receipt number provided.</p>';
+    return;
+  }
+
+  const { data, error } = await supabase.rpc('verify_receipt', { receipt_num: receiptNo });
+
+  if (error || !data || !data.length) {
+    el.innerHTML = `<p class="text-danger" style="font-size:2rem;">✕</p><p>Receipt <strong>${receiptNo}</strong> not found. This may not be a valid Pragna College receipt.</p>`;
+    return;
+  }
+
+  const r = data[0];
+
+  if (r.voided) {
+    el.innerHTML = `
+      <p style="font-size:2rem;color:orange;">⚠</p>
+      <p><strong>This receipt has been voided</strong></p>
+      <p class="text-muted">Receipt No: ${r.receipt_number}</p>
+    `;
+    return;
+  }
+
+  el.innerHTML = `
+    <p style="font-size:2rem;color:green;">✓</p>
+    <p><strong>Valid Receipt</strong></p>
+    <table style="width:100%;margin-top:16px;text-align:left;font-size:0.9rem;">
+      <tr><td class="text-muted">Receipt No</td><td><strong>${r.receipt_number}</strong></td></tr>
+      <tr><td class="text-muted">Student</td><td>${r.student_name}</td></tr>
+      <tr><td class="text-muted">Amount</td><td>₹${r.amount}</td></tr>
+      <tr><td class="text-muted">Date</td><td>${r.payment_date}</td></tr>
+    </table>
+  `;
+}
+verifyReceipt();
+</script>
+
+</body>
+</html>
