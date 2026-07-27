@@ -480,10 +480,30 @@ async function generateReceipt(paymentId) {
 }
 
 // Build the A5 PDF with QR code and trigger share/download
+// Convert number to words (Indian numbering system)
+function numberToWords(num) {
+  const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+    'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+  function inWords(n) {
+    if (n < 20) return a[n];
+    if (n < 100) return b[Math.floor(n / 10)] + (n % 10 ? ' ' + a[n % 10] : '');
+    if (n < 1000) return a[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' ' + inWords(n % 100) : '');
+    if (n < 100000) return inWords(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 ? ' ' + inWords(n % 1000) : '');
+    if (n < 10000000) return inWords(Math.floor(n / 100000)) + ' Lakh' + (n % 100000 ? ' ' + inWords(n % 100000) : '');
+    return inWords(Math.floor(n / 10000000)) + ' Crore' + (n % 10000000 ? ' ' + inWords(n % 10000000) : '');
+  }
+
+  const n = Math.round(num);
+  return n === 0 ? 'Zero' : inWords(n);
+}
+
+// Build the A5 PDF with QR code and trigger share/download
 async function buildAndShareReceiptPDF(receipt) {
   const { PDFDocument, rgb, StandardFonts } = PDFLib;
 
-const verifyUrl = `https://pragnacollege.in/verify.html?r=${receipt.receipt_number}`;
+  const verifyUrl = `https://app.pragnacollege.in/verify.html?r=${receipt.receipt_number}`;
   const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(verifyUrl)}`;
   const qrResponse = await fetch(qrApiUrl);
   const qrArrayBuffer = await qrResponse.arrayBuffer();
@@ -491,26 +511,91 @@ const verifyUrl = `https://pragnacollege.in/verify.html?r=${receipt.receipt_numb
 
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage([420, 595]); // A5 = half of A4
-  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const qrImage = await pdfDoc.embedPng(qrImageBytes);
 
-  page.drawText('PRAGNA COLLEGE OF EDUCATION', { x: 40, y: 550, size: 13, font: boldFont });
-  page.drawText('FEE RECEIPT', { x: 40, y: 528, size: 11, font: boldFont });
+  const navy = rgb(0.11, 0.16, 0.32);
+  const gray = rgb(0.4, 0.4, 0.4);
+  const lightGray = rgb(0.85, 0.85, 0.85);
 
-  page.drawText(`Receipt No: ${receipt.receipt_number}`, { x: 40, y: 480, size: 10, font });
-  page.drawText(`Student: ${receipt.student_name}`, { x: 40, y: 460, size: 10, font });
-  page.drawText(`Amount: Rs. ${receipt.amount}`, { x: 40, y: 440, size: 10, font });
-  page.drawText(`Date: ${receipt.payment_date}`, { x: 40, y: 420, size: 10, font });
-  page.drawText(`Mode: ${receipt.payment_mode || '-'}`, { x: 40, y: 400, size: 10, font });
+  let y = 555;
 
+  // Header
+  page.drawText('PRAGNA COLLEGE OF EDUCATION', { x: 40, y, size: 15, font: bold, color: navy });
+  y -= 16;
+  page.drawText('Affiliated Institution', { x: 40, y, size: 8, font: regular, color: gray });
+
+  // Header divider
+  y -= 12;
+  page.drawLine({ start: { x: 40, y }, end: { x: 380, y }, thickness: 1.5, color: navy });
+
+  // Title
+  y -= 22;
+  page.drawText('FEE RECEIPT', { x: 40, y, size: 13, font: bold, color: navy });
+
+  // Receipt No / Date row
+  y -= 24;
+  page.drawText(`Receipt No: ${receipt.receipt_number}`, { x: 40, y, size: 9, font: bold });
+  page.drawText(`Date: ${receipt.payment_date}`, { x: 300, y, size: 9, font: regular });
+
+  // Data table (bordered box)
+  y -= 16;
+  const tableTop = y;
+  const tableLeft = 40;
+  const tableWidth = 340;
+  const rowHeight = 22;
+  const rows = [
+    ['Student Name', receipt.student_name],
+    ['Amount Paid', `Rs. ${receipt.amount}`],
+    ['Payment Mode', receipt.payment_mode || '-'],
+  ];
+
+  rows.forEach((row, i) => {
+    const rowY = tableTop - i * rowHeight;
+    page.drawRectangle({
+      x: tableLeft, y: rowY - rowHeight, width: tableWidth, height: rowHeight,
+      borderColor: lightGray, borderWidth: 1,
+    });
+    page.drawLine({ start: { x: tableLeft + 130, y: rowY }, end: { x: tableLeft + 130, y: rowY - rowHeight }, thickness: 1, color: lightGray });
+    page.drawText(row[0], { x: tableLeft + 8, y: rowY - 15, size: 9, font: bold, color: gray });
+    page.drawText(String(row[1]), { x: tableLeft + 138, y: rowY - 15, size: 9, font: regular });
+  });
+
+  y = tableTop - rows.length * rowHeight - 20;
+
+  // Amount in words
+  page.drawText('Amount in Words:', { x: 40, y, size: 9, font: bold, color: gray });
+  y -= 14;
+  page.drawText(`Rupees ${numberToWords(receipt.amount)} Only`, { x: 40, y, size: 9, font: regular });
+
+  // PAID stamp (rotated red box, top-right area)
+  page.drawRectangle({
+    x: 300, y: 330, width: 70, height: 30,
+    borderColor: rgb(0.8, 0.1, 0.1), borderWidth: 2,
+    rotate: { type: 'degrees', angle: 15 },
+  });
+  page.drawText('PAID', {
+    x: 312, y: 340, size: 16, font: bold, color: rgb(0.8, 0.1, 0.1),
+    rotate: { type: 'degrees', angle: 15 },
+  });
+
+  // Watermark
   page.drawText('PRAGNA', {
-    x: 90, y: 230, size: 60, font: boldFont,
-    color: rgb(0.9, 0.9, 0.9),
+    x: 90, y: 230, size: 60, font: bold,
+    color: rgb(0.93, 0.93, 0.93),
     rotate: { type: 'degrees', angle: 45 },
   });
 
-  page.drawImage(qrImage, { x: 300, y: 340, width: 80, height: 80 });
+  // QR code + label
+  page.drawImage(qrImage, { x: 40, y: 60, width: 70, height: 70 });
+  page.drawText('Scan to verify', { x: 40, y: 50, size: 7, font: regular, color: gray });
+
+  // Footer
+  page.drawText('Thank you!', { x: 180, y: 40, size: 10, font: bold, color: navy });
+  page.drawText('This is a computer generated receipt. No signature required.', {
+    x: 90, y: 25, size: 7, font: regular, color: gray,
+  });
 
   const pdfBytes = await pdfDoc.save();
   const pdfBlob = new Blob([pdfBytes], { type: 'application/pdf' });
