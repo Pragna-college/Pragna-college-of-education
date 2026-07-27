@@ -521,10 +521,18 @@ async function buildAndShareReceiptPDF(receipt) {
 
   let y = 555;
 
-  // Header
-  page.drawText('PRAGNA COLLEGE OF EDUCATION', { x: 40, y, size: 15, font: bold, color: navy });
+  // Header (centered)
+  const pageWidth = 420;
+  const titleText = 'PRAGNA COLLEGE OF EDUCATION';
+  const titleSize = 15;
+  const titleWidth = bold.widthOfTextAtSize(titleText, titleSize);
+  page.drawText(titleText, { x: (pageWidth - titleWidth) / 2, y, size: titleSize, font: bold, color: navy });
+
   y -= 16;
-  page.drawText('Affiliated Institution', { x: 40, y, size: 8, font: regular, color: gray });
+  const subtitleText = 'Affiliated to Osmania University & Recognized by NCTE';
+  const subtitleSize = 8;
+  const subtitleWidth = regular.widthOfTextAtSize(subtitleText, subtitleSize);
+  page.drawText(subtitleText, { x: (pageWidth - subtitleWidth) / 2, y, size: subtitleSize, font: regular, color: gray });
 
   // Header divider
   y -= 12;
@@ -578,13 +586,6 @@ async function buildAndShareReceiptPDF(receipt) {
   page.drawText('PAID', {
     x: 312, y: 340, size: 16, font: bold, color: rgb(0.8, 0.1, 0.1),
     rotate: { type: 'degrees', angle: 15 },
-  });
-
-  // Watermark
-  page.drawText('PRAGNA', {
-    x: 90, y: 230, size: 60, font: bold,
-    color: rgb(0.93, 0.93, 0.93),
-    rotate: { type: 'degrees', angle: 45 },
   });
 
   // QR code + label
