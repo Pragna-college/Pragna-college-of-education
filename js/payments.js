@@ -457,6 +457,19 @@ async function generateReceipt(paymentId) {
       await supabase.from('fee_payments').update({ receipt_no: receipt.receipt_number }).eq('id', paymentId);
       payment.receipt_no = receipt.receipt_number;
       renderPayments();
+      payment.receipt_no = receipt.receipt_number;
+        renderPayments();
+
+        // Notify management via Telegram
+        fetch(`https://api.telegram.org/bot8983134051:AAGLVQkgVWKRqcsOflQTZ04wg2SI_fZAtqM/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: '2006976934',
+            text: `New receipt ${receipt.receipt_number} generated for ${receipt.student_name}, ₹${receipt.amount}`,
+          }),
+        });
+      }
     }
 
     await buildAndShareReceiptPDF(receipt);
