@@ -470,7 +470,7 @@ async function generateReceipt(paymentId) {
 async function buildAndShareReceiptPDF(receipt) {
   const { PDFDocument, rgb, StandardFonts } = PDFLib;
 
-  const verifyUrl = `https://pragnacollege.in/verify/${receipt.receipt_number}`;
+  const verifyUrl = `https://pragnacollege.in/verify.html?r=${receipt.receipt_number}`;
   const qrDataUrl = await QRCode.toDataURL(verifyUrl);
   const qrImageBytes = Uint8Array.from(atob(qrDataUrl.split(',')[1]), (c) => c.charCodeAt(0));
 
