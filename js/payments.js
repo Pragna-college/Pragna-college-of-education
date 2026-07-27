@@ -142,6 +142,7 @@ function renderPayments() {
         <div class="flex gap-1">
           <button class="btn btn-outline btn-sm" onclick="openEdit('${p.id}')">Edit</button>
           <button class="btn btn-danger btn-sm" onclick="openDelete('${p.id}')">Delete</button>
+          ${p.payment_type !== 'Concession' ? `<button class="btn btn-primary btn-sm" onclick="generateReceipt('${p.id}')">Receipt</button>` : ''}
         </div>
       </td>
     </tr>
@@ -228,7 +229,6 @@ async function savePayment() {
   const amount      = parseFloat(document.getElementById('payment-amount').value);
   const mode        = document.getElementById('payment-mode').value;
   const date        = document.getElementById('payment-date').value;
-  const receiptNo   = document.getElementById('receipt-no').value.trim();
   const notes       = document.getElementById('payment-notes').value.trim();
 
   if (!studentId || !paymentType) {
@@ -265,7 +265,6 @@ async function savePayment() {
     amount,
     mode,
     payment_date:  date,
-    receipt_no:    receiptNo || null,
     notes:         notes || null,
     recorded_by:   user?.email || 'unknown',
   };
@@ -417,6 +416,104 @@ function setupEventListeners() {
     }
   });
 }
+// Generate (or re-fetch) a receipt and share as PDF
+async function generateReceipt(paymentId) {
+  const payment = allPayments.find((p) => p.id === paymentId);
+  if (!payment) return showToast('Payment not found.', 'danger');
 
+  if (payment.payment_type === 'Concession') {
+    showToast('Concessions do not need a receipt.', 'danger');
+    return;
+  }
+
+  try {
+    // Check if a receipt already exists for this payment
+    let { data: receipt } = await supabase
+      .from('fee_receipts')
+      .select('*')
+      .eq('payment_id', paymentId)
+      .maybeSingle();
+
+    if (!receipt) {
+      const user = await getCurrentUser();
+      const { data: inserted, error } = await supabase
+        .from('fee_receipts')
+        .insert({
+          payment_id:   paymentId,
+          student_id:   payment.student_id,
+          student_name: payment.students?.name || 'Unknown',
+          amount:       payment.amount,
+          payment_date: payment.payment_date,
+          payment_mode: payment.mode,
+          created_by:   user?.id || null,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      receipt = inserted;
+
+      // Sync the receipt number back onto fee_payments
+      await supabase.from('fee_payments').update({ receipt_no: receipt.receipt_number }).eq('id', paymentId);
+      payment.receipt_no = receipt.receipt_number;
+      renderPayments();
+    }
+
+    await buildAndShareReceiptPDF(receipt);
+
+  } catch (err) {
+    showToast(err.message || 'Failed to generate receipt.', 'danger');
+  }
+}
+
+// Build the A5 PDF with QR code and trigger share/download
+async function buildAndShareReceiptPDF(receipt) {
+  const { PDFDocument, rgb, StandardFonts } = PDFLib;
+
+  const verifyUrl = `https://pragnacollege.in/verify/${receipt.receipt_number}`;
+  const qrDataUrl = await QRCode.toDataURL(verifyUrl);
+  const qrImageBytes = Uint8Array.from(atob(qrDataUrl.split(',')[1]), (c) => c.charCodeAt(0));
+
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([420, 595]); // A5 = half of A4
+  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const qrImage = await pdfDoc.embedPng(qrImageBytes);
+
+  page.drawText('PRAGNA COLLEGE OF EDUCATION', { x: 40, y: 550, size: 13, font: boldFont });
+  page.drawText('FEE RECEIPT', { x: 40, y: 528, size: 11, font: boldFont });
+
+  page.drawText(`Receipt No: ${receipt.receipt_number}`, { x: 40, y: 480, size: 10, font });
+  page.drawText(`Student: ${receipt.student_name}`, { x: 40, y: 460, size: 10, font });
+  page.drawText(`Amount: Rs. ${receipt.amount}`, { x: 40, y: 440, size: 10, font });
+  page.drawText(`Date: ${receipt.payment_date}`, { x: 40, y: 420, size: 10, font });
+  page.drawText(`Mode: ${receipt.payment_mode || '-'}`, { x: 40, y: 400, size: 10, font });
+
+  page.drawText('PRAGNA', {
+    x: 90, y: 230, size: 60, font: boldFont,
+    color: rgb(0.9, 0.9, 0.9),
+    rotate: { type: 'degrees', angle: 45 },
+  });
+
+  page.drawImage(qrImage, { x: 300, y: 340, width: 80, height: 80 });
+
+  const pdfBytes = await pdfDoc.save();
+  const pdfBlob = new Blob([pdfBytes], { type: 'application/pdf' });
+
+  const cleanName = (receipt.student_name || 'student').trim().replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_');
+  const fileName = `${cleanName}_${receipt.payment_date}.pdf`;
+  const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    await navigator.share({ files: [file], title: 'Fee Receipt' });
+  } else {
+    const url = URL.createObjectURL(pdfBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+}
 // Init
 initPayments();
